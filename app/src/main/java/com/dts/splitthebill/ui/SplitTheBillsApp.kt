@@ -3,12 +3,14 @@ package com.dts.splitthebill.ui
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -40,6 +43,9 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Fastfood
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Flight
@@ -57,6 +63,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -97,6 +104,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -109,6 +118,8 @@ import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -122,14 +133,8 @@ import com.dts.splitthebill.domain.model.GroupSummary
 import com.dts.splitthebill.domain.model.Participant
 import com.dts.splitthebill.domain.model.SplitMode
 import com.dts.splitthebill.domain.repository.ThemePreference
+import com.dts.splitthebill.ui.theme.LocalBalanceCardColors
 import com.dts.splitthebill.ui.theme.SplitTheBillsTheme
-import com.dts.splitthebill.ui.theme.SupportText
-import com.dts.splitthebill.ui.theme.MutedText
-import com.dts.splitthebill.ui.theme.Positive
-import com.dts.splitthebill.ui.theme.PositiveSoft
-import com.dts.splitthebill.ui.theme.Negative
-import com.dts.splitthebill.ui.theme.NegativeSoft
-import com.dts.splitthebill.ui.theme.SurfaceMuted
 import java.text.DateFormat
 import java.util.Date
 
@@ -252,7 +257,7 @@ private fun DesignBottomNavigation(selected: MainDestination, onSelected: (MainD
         Triple(MainDestination.ACTIVITY, "Activity", Icons.Filled.ReceiptLong),
         Triple(MainDestination.PROFILE, "Profile", Icons.Filled.Person),
     )
-    Surface(color = MaterialTheme.colorScheme.background.copy(alpha = 0.98f), shadowElevation = 8.dp) {
+    Surface(color = MaterialTheme.colorScheme.background.copy(alpha = 0.98f), shadowElevation = 1.dp) {
         Row(
             Modifier.fillMaxWidth().navigationBarsPadding().height(76.dp).padding(horizontal = 6.dp, vertical = 5.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -267,13 +272,13 @@ private fun DesignBottomNavigation(selected: MainDestination, onSelected: (MainD
                     Surface(
                         modifier = Modifier.width(58.dp).height(32.dp),
                         shape = CircleShape,
-                        color = if (active) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                        color = if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(icon, contentDescription = label, tint = if (active) Color.White else SupportText, modifier = Modifier.size(21.dp))
+                            Icon(icon, contentDescription = label, tint = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
                         }
                     }
-                    Text(label, fontSize = 11.sp, fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (active) MaterialTheme.colorScheme.onSurface else SupportText)
+                    Text(label, fontSize = 11.sp, fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -434,13 +439,13 @@ private fun HomeScreen(
             ) {
                 Avatar(name = state.user?.displayName ?: "You", size = 40.dp)
                 Column(Modifier.weight(1f)) {
-                    Text("Good morning", color = MutedText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Good morning", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Text(name, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                 }
                 IconButton(onClick = {}) { Icon(Icons.Outlined.Search, contentDescription = "Search") }
                 IconButton(onClick = {}) { Icon(Icons.Outlined.Notifications, contentDescription = "Notifications") }
             }
-            BalanceHero(myBalance, owed, owe) { detail?.let { onAction(SplitTheBillsAction.OpenSettlement) } }
+            BalanceHero(myBalance, owed, owe, detail) { detail?.let { onAction(SplitTheBillsAction.OpenSettlement) } }
             SectionHeader("Active groups", "See all", onSeeAll, Modifier.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 10.dp))
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -450,7 +455,7 @@ private fun HomeScreen(
                     DesignCard(Modifier.width(230.dp).clickable { onSeeAll() }) {
                         GroupTile(null, 44.dp)
                         Text("Create your first group", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-                        Text("Trips, homes, and shared plans", color = MutedText, fontSize = 12.sp)
+                        Text("Trips, homes, and shared plans", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }
                 state.groups.forEach { group ->
@@ -462,8 +467,8 @@ private fun HomeScreen(
                             Avatar(group.name, 24.dp)
                         }
                         Text(group.name, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-                        Text(if (group.archived) "archived" else "active", color = if (group.archived) MutedText else Positive, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Text(group.currency, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = if (group.archived) MutedText else Positive)
+                        Text(if (group.archived) "archived" else "active", color = if (group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(group.currency, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = if (group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -471,7 +476,7 @@ private fun HomeScreen(
             DesignCard(Modifier.padding(horizontal = 16.dp), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
                 val recent = detail?.expenses.orEmpty().sortedByDescending { it.date }.take(4)
                 if (recent.isEmpty()) {
-                    Text("Your latest shared expenses will appear here.", color = MutedText, modifier = Modifier.padding(14.dp))
+                    Text("Your latest shared expenses will appear here.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(14.dp))
                 } else {
                     recent.forEachIndexed { index, expense ->
                         ExpenseDesignRow(expense, detail!!, index > 0) { onAction(SplitTheBillsAction.OpenExpense(expense.id)) }
@@ -486,25 +491,27 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun BalanceHero(balance: Long, owed: Long, owe: Long, onSettle: () -> Unit) {
+private fun BalanceHero(balance: Long, owed: Long, owe: Long, group: GroupDetail?, onSettle: () -> Unit) {
+    val colors = LocalBalanceCardColors.current
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).testTag("balance_card"),
         shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.onSurface,
+        color = colors.container,
+        contentColor = colors.content,
     ) {
         Column(Modifier.padding(22.dp)) {
-            Text("Total balance", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Text(formatMinorSigned(balance), color = if (balance >= 0) Color.White else Color(0xFFF2A18E), fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.2).sp)
-            Text(if (balance >= 0) "Overall, friends owe you" else "Overall, you owe friends", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+            Text("Total balance", color = colors.supporting, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(formatMinorSigned(balance, group), color = if (balance >= 0) colors.content else colors.negative, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.2).sp)
+            Text(if (balance >= 0) "Overall, friends owe you" else "Overall, you owe friends", color = colors.supporting, fontSize = 13.sp)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                DarkMetric("You are owed", owed, Color(0xFF78DDAF), Modifier.weight(1f))
-                DarkMetric("You owe", owe, Color(0xFFF0A18F), Modifier.weight(1f))
+                DarkMetric("You are owed", owed, colors.positive, group, Modifier.weight(1f))
+                DarkMetric("You owe", owe, colors.negative, group, Modifier.weight(1f))
             }
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onSettle, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = MaterialTheme.colorScheme.onSurface), shape = CircleShape) {
+                Button(onClick = onSettle, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = colors.content, contentColor = colors.container), shape = CircleShape) {
                     Icon(Icons.Outlined.Handshake, contentDescription = null, Modifier.size(19.dp)); Spacer(Modifier.width(7.dp)); Text("Settle up")
                 }
-                OutlinedButton(onClick = {}, modifier = Modifier.weight(1f), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White), shape = CircleShape) {
+                OutlinedButton(onClick = {}, modifier = Modifier.weight(1f), border = BorderStroke(1.dp, colors.supporting), colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.content), shape = CircleShape) {
                     Icon(Icons.Outlined.Notifications, contentDescription = null, Modifier.size(18.dp)); Spacer(Modifier.width(7.dp)); Text("Remind")
                 }
             }
@@ -513,11 +520,12 @@ private fun BalanceHero(balance: Long, owed: Long, owe: Long, onSettle: () -> Un
 }
 
 @Composable
-private fun DarkMetric(label: String, amount: Long, color: Color, modifier: Modifier = Modifier) {
-    Surface(modifier, color = Color.White.copy(alpha = 0.07f), shape = RoundedCornerShape(18.dp)) {
+private fun DarkMetric(label: String, amount: Long, color: Color, group: GroupDetail?, modifier: Modifier = Modifier) {
+    val colors = LocalBalanceCardColors.current
+    Surface(modifier, color = colors.content.copy(alpha = 0.07f), contentColor = colors.content, shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(13.dp)) {
-            Text(label, color = Color.White.copy(alpha = 0.65f), fontSize = 12.sp)
-            Text(formatMinor(amount), color = color, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
+            Text(label, color = colors.supporting, fontSize = 12.sp)
+            Text(formatMinor(amount, group), color = color, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
@@ -550,8 +558,8 @@ private fun GroupsScreen(state: SplitTheBillsUiState, padding: PaddingValues, on
                     shape = RoundedCornerShape(22.dp),
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Surface(Modifier.size(44.dp), color = SurfaceMuted, shape = RoundedCornerShape(14.dp)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.GroupAdd, null) } }
-                        Column(Modifier.weight(1f)) { Text("Create a group", fontWeight = FontWeight.Bold); Text("For a trip, a flat, or a night out", color = MutedText, fontSize = 12.sp) }
+                        Surface(Modifier.size(44.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(14.dp)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.GroupAdd, null) } }
+                        Column(Modifier.weight(1f)) { Text("Create a group", fontWeight = FontWeight.Bold); Text("For a trip, a flat, or a night out", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
                     }
                 }
                 TextButton(onClick = { onAction(SplitTheBillsAction.OpenInvitationRedemption) }, modifier = Modifier.fillMaxWidth().testTag("open_invitation")) { Text("Have an invitation? Join a group") }
@@ -570,20 +578,20 @@ private fun GroupCard(group: GroupSummary, onAction: (SplitTheBillsAction) -> Un
             GroupTile(group, 52.dp)
             Column(Modifier.weight(1f)) {
                 Text(group.name, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-                Text("${group.currency} · ${group.role.lowercase().replaceFirstChar(Char::uppercase)}", color = MutedText, fontSize = 12.sp)
+                Text("${group.currency} · ${group.role.lowercase().replaceFirstChar(Char::uppercase)}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(if (group.archived) "archived" else "active", color = if (group.archived) MutedText else Positive, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                Text(group.currency, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = if (group.archived) MutedText else Positive)
+                Text(if (group.archived) "archived" else "active", color = if (group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(group.currency, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = if (group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
             }
         }
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Avatar(group.name, 26.dp)
-            Text("Shared group", color = SupportText, fontSize = 12.sp, modifier = Modifier.padding(start = 8.dp).weight(1f))
+            Text("Shared group", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(start = 8.dp).weight(1f))
             Text("Open details", fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
-        Text("Settled", color = MutedText, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp))
-        Surface(Modifier.fillMaxWidth().height(6.dp).padding(top = 2.dp), color = SurfaceMuted, shape = CircleShape) {}
+        Text("Settled", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp))
+        Surface(Modifier.fillMaxWidth().height(6.dp).padding(top = 2.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = CircleShape) {}
     }
 }
 
@@ -607,14 +615,14 @@ private fun GlobalActivityScreen(state: SplitTheBillsUiState, padding: PaddingVa
             DesignCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), contentPadding = PaddingValues(18.dp)) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1f)) {
-                        Text("Your share this month", color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Text(formatMinor(yourShare), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("Your share this month", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(formatMinor(yourShare, group), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
                     }
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(18.dp, 32.dp, 42.dp).forEachIndexed { index, height ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Surface(Modifier.width(14.dp).height(height), color = if (index == 2) MaterialTheme.colorScheme.onSurface else SurfaceMuted, shape = RoundedCornerShape(4.dp)) {}
-                                Text("W${index + 1}", color = MutedText, fontSize = 9.sp)
+                                Surface(Modifier.width(14.dp).height(height), color = if (index == 2) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(4.dp)) {}
+                                Text("W${index + 1}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
                             }
                         }
                     }
@@ -627,7 +635,7 @@ private fun GlobalActivityScreen(state: SplitTheBillsUiState, padding: PaddingVa
                 if (group == null) {
                     EmptyCard("No activity selected", "Open a group to load its latest expenses and repayments.")
                 } else {
-                    Text(group.name.uppercase(), color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.6.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+                    Text(group.name.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.6.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
                     expenses.forEach { expense ->
                         DesignCard(Modifier.fillMaxWidth().clickable { onAction(SplitTheBillsAction.OpenExpense(expense.id)) }, contentPadding = PaddingValues(14.dp)) {
                             ExpenseDesignRow(expense, group, false) { onAction(SplitTheBillsAction.OpenExpense(expense.id)) }
@@ -636,10 +644,10 @@ private fun GlobalActivityScreen(state: SplitTheBillsUiState, padding: PaddingVa
                     settlements.forEach { settlement ->
                         DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Surface(Modifier.size(44.dp), color = MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(14.dp)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Handshake, null, tint = Color.White) } }
+                                Surface(Modifier.size(44.dp), color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(14.dp)) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Handshake, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) } }
                                 Column(Modifier.weight(1f)) {
                                     Text("${nameOf(group, settlement.fromParticipantId)} paid ${nameOf(group, settlement.toParticipantId)}", fontWeight = FontWeight.Bold)
-                                    Text(settlement.date, color = MutedText, fontSize = 12.sp)
+                                    Text(settlement.date, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                                 }
                                 Text(format(settlement.amountMinor, group), fontWeight = FontWeight.ExtraBold)
                             }
@@ -661,7 +669,7 @@ private fun DesignCard(
     contentPadding: PaddingValues = PaddingValues(16.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(24.dp), shadowElevation = 2.dp) {
+    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(24.dp), shadowElevation = 0.5.dp) {
         Column(Modifier.padding(contentPadding), content = content)
     }
 }
@@ -676,22 +684,25 @@ private fun GroupTile(group: GroupSummary?, size: androidx.compose.ui.unit.Dp) {
         else -> Icons.Outlined.FavoriteBorder
     }
     val color = when {
-        group == null -> SurfaceMuted
-        group.name.contains("trip", true) -> Color(0xFFD4F5F5)
-        group.name.contains("home", true) || group.name.contains("street", true) -> Color(0xFFDDF3DB)
-        group.name.contains("dinner", true) -> Color(0xFFFFE3DA)
-        else -> Color(0xFFFFDDE1)
+        group == null -> MaterialTheme.colorScheme.surfaceContainer
+        group.name.contains("trip", true) || group.name.contains("travel", true) -> MaterialTheme.colorScheme.tertiaryContainer
+        group.name.contains("home", true) || group.name.contains("street", true) || group.name.contains("flat", true) -> MaterialTheme.colorScheme.primaryContainer
+        group.name.contains("dinner", true) || group.name.contains("food", true) -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.secondaryContainer
     }
     Surface(Modifier.size(size), color = color, shape = RoundedCornerShape(size / 3)) {
-        Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null, modifier = Modifier.size(size / 2), tint = MaterialTheme.colorScheme.onSurface) }
+        Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null, modifier = Modifier.size(size / 2), tint = MaterialTheme.colorScheme.contentColorFor(color)) }
     }
 }
 
 @Composable
-private fun Avatar(name: String, size: androidx.compose.ui.unit.Dp) {
+private fun Avatar(name: String, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
     val initials = name.trim().split(" ").filter(String::isNotBlank).take(2).joinToString("") { it.take(1).uppercase() }.ifBlank { "?" }
-    Surface(Modifier.size(size), color = Color(0xFFCDEEDF), shape = CircleShape) {
-        Box(contentAlignment = Alignment.Center) { Text(initials, color = Color(0xFF24664F), fontSize = (size.value * 0.34f).sp, fontWeight = FontWeight.Bold) }
+    val initialsSize = with(LocalDensity.current) { (size * 0.34f).toSp() }
+    Surface(modifier.size(size), color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(initials, color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = initialsSize, lineHeight = initialsSize, maxLines = 1, softWrap = false, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -699,10 +710,10 @@ private fun Avatar(name: String, size: androidx.compose.ui.unit.Dp) {
 private fun DesignChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.height(36.dp).clickable(onClick = onClick),
-        color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surface,
-        contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+        color = if (selected) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
+        contentColor = if (selected) MaterialTheme.colorScheme.inverseOnSurface else MaterialTheme.colorScheme.onSurface,
         shape = CircleShape,
-        shadowElevation = if (selected) 0.dp else 1.dp,
+        shadowElevation = if (selected) 0.dp else 0.5.dp,
     ) { Box(Modifier.padding(horizontal = 15.dp), contentAlignment = Alignment.Center) { Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold) } }
 }
 
@@ -713,7 +724,13 @@ private fun DesignFab(label: String, modifier: Modifier = Modifier, onClick: () 
         modifier = modifier.height(56.dp),
         shape = RoundedCornerShape(18.dp),
         contentPadding = PaddingValues(horizontal = 18.dp),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 1.dp,
+            pressedElevation = 2.dp,
+            focusedElevation = 1.dp,
+            hoveredElevation = 1.dp,
+            disabledElevation = 0.dp,
+        ),
     ) {
         Icon(Icons.Filled.Add, contentDescription = null, Modifier.size(20.dp)); Spacer(Modifier.width(7.dp)); Text(label, fontWeight = FontWeight.ExtraBold)
     }
@@ -730,20 +747,75 @@ private fun SectionHeader(title: String, action: String?, onAction: () -> Unit, 
 @Composable
 private fun ExpenseDesignRow(expense: Expense, group: GroupDetail, divider: Boolean, onClick: () -> Unit) {
     if (divider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Surface(Modifier.size(44.dp), color = SurfaceMuted, shape = RoundedCornerShape(14.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Surface(Modifier.size(44.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(14.dp)) {
             Box(contentAlignment = Alignment.Center) { Icon(categoryIcon(expense.category), null, modifier = Modifier.size(21.dp)) }
         }
         Column(Modifier.weight(1f)) {
-            Text(expense.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Text("${nameOf(group, expense.contributions.firstOrNull()?.participantId.orEmpty())} paid ${format(expense.amountMinor, group)} · ${expense.date}", color = MutedText, fontSize = 11.sp, maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(expense.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("${nameOf(group, expense.contributions.firstOrNull()?.participantId.orEmpty())} paid ${format(expense.amountMinor, group)} · ${expense.date}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, maxLines = 1)
+                }
+                val myId = group.currentMemberParticipantId
+                val share = expense.allocations.firstOrNull { it.participantId == myId }?.amountMinor ?: 0L
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(if (expense.contributions.any { it.participantId == myId }) "you lent" else "you owe", color = if (expense.contributions.any { it.participantId == myId }) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary, fontSize = 10.sp)
+                    Text(format(share, group), color = if (expense.contributions.any { it.participantId == myId }) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                }
+            }
+            ExpenseParticipants(expense, group, Modifier.padding(top = 8.dp))
         }
-        val myId = group.currentMemberParticipantId
-        val share = expense.allocations.firstOrNull { it.participantId == myId }?.amountMinor ?: 0L
-        Column(horizontalAlignment = Alignment.End) {
-            Text(if (expense.contributions.any { it.participantId == myId }) "you lent" else "you owe", color = if (expense.contributions.any { it.participantId == myId }) Positive else Negative, fontSize = 10.sp)
-            Text(format(share, group), color = if (expense.contributions.any { it.participantId == myId }) Positive else Negative, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+    }
+}
+
+@Composable
+internal fun ExpenseParticipants(expense: Expense, group: GroupDetail, modifier: Modifier = Modifier) {
+    val participantIds = (expense.contributions.map { it.participantId } +
+        expense.allocations.map { it.participantId }).distinct()
+    if (participantIds.isEmpty()) return
+    val names = participantIds.map { nameOf(group, it) }
+    val shown = names.take(4)
+    val remaining = names.size - shown.size
+    val circles = shown.size + if (remaining > 0) 1 else 0
+    Row(
+        modifier = modifier.testTag("expense_participants_${expense.id}").clearAndSetSemantics {
+            contentDescription = "Participants: ${names.joinToString()}"
+        },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(Modifier.width((26 + (circles - 1) * 18).dp).height(26.dp)) {
+            shown.forEachIndexed { index, name ->
+                Avatar(
+                    name,
+                    26.dp,
+                    Modifier.offset(x = (index * 18).dp)
+                        .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                )
+            }
+            if (remaining > 0) {
+                val countSize = with(LocalDensity.current) { 9.dp.toSp() }
+                Surface(
+                    modifier = Modifier.offset(x = (shown.size * 18).dp).size(26.dp)
+                        .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ) {
+                    Box(contentAlignment = Alignment.Center) { Text("+$remaining", fontSize = countSize, lineHeight = countSize, maxLines = 1, fontWeight = FontWeight.Bold) }
+                }
+            }
         }
+        Text(
+            if (names.size == 1) "1 person" else "${names.size} people",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -754,8 +826,12 @@ private fun categoryIcon(category: String): ImageVector = when (category.upperca
     else -> Icons.Outlined.ReceiptLong
 }
 
-private fun formatMinor(amountMinor: Long): String = "$" + String.format("%,.2f", amountMinor / 100.0)
-private fun formatMinorSigned(amountMinor: Long): String = (if (amountMinor >= 0) "+" else "−") + formatMinor(kotlin.math.abs(amountMinor))
+private fun formatMinor(amountMinor: Long, group: GroupDetail?): String =
+    if (group != null) format(amountMinor, group)
+    else "$" + MoneyText.formatMinor(amountMinor, CurrencyUnit("USD", 2))
+
+private fun formatMinorSigned(amountMinor: Long, group: GroupDetail?): String =
+    (if (amountMinor >= 0) "+" else "−") + formatMinor(kotlin.math.abs(amountMinor), group)
 
 @Composable
 private fun InvitationRedemptionScreen(
@@ -801,16 +877,10 @@ private fun CreateGroupScreen(state: SplitTheBillsUiState, padding: PaddingValue
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("group_name"),
             )
-            Text("Currency", fontWeight = FontWeight.SemiBold)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("EUR", "USD", "GBP", "JPY", "MAD").forEach { currency ->
-                    FilterChip(
-                        selected = state.createGroupForm.currency == currency,
-                        onClick = { onAction(SplitTheBillsAction.CreateGroupCurrencyChanged(currency)) },
-                        label = { Text(currency) },
-                    )
-                }
-            }
+            CurrencyPickerField(
+                currencyCode = state.createGroupForm.currency,
+                onCurrencySelected = { onAction(SplitTheBillsAction.CreateGroupCurrencyChanged(it)) },
+            )
             Text(
                 "Currency is locked after the first expense or repayment.",
                 style = MaterialTheme.typography.bodySmall,
@@ -850,18 +920,18 @@ private fun GroupScreen(state: SplitTheBillsUiState, padding: PaddingValues, onA
                 GroupTile(GroupSummary(group.id, group.name, group.currency, "", group.currentMemberParticipantId, group.revision, group.archived), 64.dp)
                 Column(Modifier.weight(1f)) {
                     Text(group.name, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp)
-                    Text("${group.currency} · ${group.participants.count(Participant::active)} members", color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("${group.currency} · ${group.participants.count(Participant::active)} members", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             DesignCard(Modifier.fillMaxWidth().padding(top = 14.dp), contentPadding = PaddingValues(18.dp)) {
                 Row(Modifier.fillMaxWidth()) {
-                    Column(Modifier.weight(1f)) { Text("Group spend", color = MutedText, fontSize = 12.sp); Text(format(totalSpend, group), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold) }
+                    Column(Modifier.weight(1f)) { Text("Group spend", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp); Text(format(totalSpend, group), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold) }
                     Surface(Modifier.width(1.dp).height(48.dp), color = MaterialTheme.colorScheme.outlineVariant) {}
-                    Column(Modifier.weight(1f).padding(start = 14.dp)) { Text("Your balance", color = MutedText, fontSize = 12.sp); Text(formatMinorSigned(myBalance), color = if (myBalance >= 0) Positive else Negative, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold) }
+                    Column(Modifier.weight(1f).padding(start = 14.dp)) { Text("Your balance", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp); Text(formatMinorSigned(myBalance, group), color = if (myBalance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold) }
                 }
                 Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { onAction(SplitTheBillsAction.SelectGroupTab(GroupTab.BALANCES)) }, modifier = Modifier.weight(1f).height(44.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface), shape = CircleShape) { Icon(Icons.Outlined.Handshake, null, Modifier.size(19.dp)); Spacer(Modifier.width(6.dp)); Text("Settle up") }
-                    Button(onClick = {}, modifier = Modifier.weight(1f).height(44.dp), colors = ButtonDefaults.buttonColors(containerColor = SurfaceMuted, contentColor = MaterialTheme.colorScheme.onSurface), shape = CircleShape) { Text("Export") }
+                    Button(onClick = { onAction(SplitTheBillsAction.SelectGroupTab(GroupTab.BALANCES)) }, modifier = Modifier.weight(1f).height(44.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface), shape = CircleShape) { Icon(Icons.Outlined.Handshake, null, Modifier.size(19.dp)); Spacer(Modifier.width(6.dp)); Text("Settle up") }
+                    Button(onClick = {}, modifier = Modifier.weight(1f).height(44.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface), shape = CircleShape) { Text("Export") }
                 }
             }
             DesignSegmented(
@@ -884,15 +954,15 @@ private fun GroupScreen(state: SplitTheBillsUiState, padding: PaddingValues, onA
 @Composable
 private fun DesignSegmented(selected: GroupTab, modifier: Modifier = Modifier, onSelected: (GroupTab) -> Unit) {
     val tabs = listOf(GroupTab.EXPENSES to "Expenses", GroupTab.BALANCES to "Balances", GroupTab.ACTIVITY to "Members")
-    Surface(modifier, color = SurfaceMuted, shape = CircleShape) {
+    Surface(modifier, color = MaterialTheme.colorScheme.surfaceContainer, shape = CircleShape) {
         Row(Modifier.fillMaxWidth().padding(4.dp)) {
             tabs.forEach { (tab, label) ->
                 Surface(
                     modifier = Modifier.weight(1f).height(36.dp).clickable { onSelected(tab) },
-                    color = if (selected == tab) Color.White else Color.Transparent,
+                    color = if (selected == tab) MaterialTheme.colorScheme.surface else Color.Transparent,
                     shape = CircleShape,
-                    shadowElevation = if (selected == tab) 2.dp else 0.dp,
-                ) { Box(contentAlignment = Alignment.Center) { Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (selected == tab) MaterialTheme.colorScheme.onSurface else SupportText) } }
+                    shadowElevation = if (selected == tab) 0.5.dp else 0.dp,
+                ) { Box(contentAlignment = Alignment.Center) { Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (selected == tab) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant) } }
             }
         }
     }
@@ -906,8 +976,8 @@ private fun GroupMembersSummary(group: GroupDetail) {
             val balance = group.balances.firstOrNull { it.participantId == participant.id }?.amountMinor ?: 0L
             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Avatar(participant.displayName, 38.dp)
-                Column(Modifier.weight(1f)) { Text(if (participant.id == group.currentMemberParticipantId) "You" else participant.displayName, fontWeight = FontWeight.Bold); Text(if (participant.linkedUid == null) "Invitation pending" else "Group member", color = MutedText, fontSize = 12.sp) }
-                Column(horizontalAlignment = Alignment.End) { Text(formatMinorSigned(balance), color = if (balance > 0) Positive else if (balance < 0) Negative else MutedText, fontWeight = FontWeight.ExtraBold); Text(if (balance > 0) "gets back" else if (balance < 0) "owes" else "even", color = MutedText, fontSize = 10.sp) }
+                Column(Modifier.weight(1f)) { Text(if (participant.id == group.currentMemberParticipantId) "You" else participant.displayName, fontWeight = FontWeight.Bold); Text(if (participant.linkedUid == null) "Invitation pending" else "Group member", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
+                Column(horizontalAlignment = Alignment.End) { Text(formatMinorSigned(balance, group), color = if (balance > 0) MaterialTheme.colorScheme.primary else if (balance < 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold); Text(if (balance > 0) "gets back" else if (balance < 0) "owes" else "even", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp) }
             }
         }
     }
@@ -915,22 +985,32 @@ private fun GroupMembersSummary(group: GroupDetail) {
 
 @Composable
 private fun ParticipantAdder(state: SplitTheBillsUiState, onAction: (SplitTheBillsAction) -> Unit) {
-    FlowRow(
-        Modifier.fillMaxWidth(),
+    // Outlined fields reserve half a label line above the visible border.
+    val labelInset = with(LocalDensity.current) {
+        MaterialTheme.typography.bodySmall.lineHeight.toDp() / 2
+    }
+    Row(
+        Modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom,
     ) {
         OutlinedTextField(
             value = state.participantName,
             onValueChange = { onAction(SplitTheBillsAction.ParticipantNameChanged(it)) },
             label = { Text("Add named participant") },
             singleLine = true,
-            modifier = Modifier.widthIn(min = 240.dp).weight(1f).testTag("group_participant_name"),
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.weight(1f).testTag("group_participant_name"),
         )
         OutlinedButton(
             onClick = { onAction(SplitTheBillsAction.AddParticipant) },
             enabled = state.online && !state.saving,
-            modifier = Modifier.testTag("group_participant_submit"),
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier
+                .padding(top = labelInset)
+                .fillMaxHeight()
+                .widthIn(min = 80.dp)
+                .testTag("group_participant_submit"),
         ) { Text("Add") }
     }
 }
@@ -1169,10 +1249,10 @@ private fun BalanceList(group: GroupDetail, onAction: (SplitTheBillsAction) -> U
         }
     }
 
-    Surface(Modifier.fillMaxWidth(), color = PositiveSoft, shape = RoundedCornerShape(20.dp)) {
+    Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(20.dp)) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("✦", color = Positive, fontSize = 22.sp)
-            Text("Balances are simplified into fewer transfers, so fewer payments change hands.", color = Color(0xFF24664F), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text("✦", color = MaterialTheme.colorScheme.primary, fontSize = 22.sp)
+            Text("Balances are simplified into fewer transfers, so fewer payments change hands.", color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
     Spacer(Modifier.height(12.dp))
@@ -1183,17 +1263,17 @@ private fun BalanceList(group: GroupDetail, onAction: (SplitTheBillsAction) -> U
         )
         suggestions.getOrThrow().isEmpty() -> EmptyCard("Everyone is settled", "No repayment is currently needed.")
         else -> DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
-            Text("WHO OWES WHOM", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp))
+            Text("WHO OWES WHOM", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp))
             suggestions.getOrThrow().forEachIndexed { index, suggestion ->
                 if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Avatar(nameOf(group, suggestion.fromParticipantId), 36.dp)
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(format(suggestion.amountMinor, group), color = if (suggestion.toParticipantId == group.currentMemberParticipantId) Positive else SupportText, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
-                        Text("- - - - - - →", color = if (suggestion.toParticipantId == group.currentMemberParticipantId) Positive else MutedText, fontSize = 11.sp)
+                        Text(format(suggestion.amountMinor, group), color = if (suggestion.toParticipantId == group.currentMemberParticipantId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                        Text("- - - - - - →", color = if (suggestion.toParticipantId == group.currentMemberParticipantId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                     }
                     Avatar(nameOf(group, suggestion.toParticipantId), 36.dp)
-                    Surface(modifier = Modifier.clickable { onAction(SplitTheBillsAction.OpenSettlement) }, color = PositiveSoft, shape = CircleShape) { Text(if (suggestion.toParticipantId == group.currentMemberParticipantId) "Record" else "Settle", color = Positive, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)) }
+                    Surface(modifier = Modifier.clickable { onAction(SplitTheBillsAction.OpenSettlement) }, color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) { Text(if (suggestion.toParticipantId == group.currentMemberParticipantId) "Record" else "Settle", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)) }
                 }
             }
         }
@@ -1205,7 +1285,7 @@ private fun BalanceList(group: GroupDetail, onAction: (SplitTheBillsAction) -> U
                 if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Avatar(nameOf(group, settlement.fromParticipantId), 38.dp)
-                    Column(Modifier.weight(1f)) { Text("${nameOf(group, settlement.fromParticipantId)} paid ${nameOf(group, settlement.toParticipantId)}", fontWeight = FontWeight.Bold, fontSize = 13.sp); Text(settlement.date, color = MutedText, fontSize = 11.sp) }
+                    Column(Modifier.weight(1f)) { Text("${nameOf(group, settlement.fromParticipantId)} paid ${nameOf(group, settlement.toParticipantId)}", fontWeight = FontWeight.Bold, fontSize = 13.sp); Text(settlement.date, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp) }
                     Text(format(settlement.amountMinor, group), fontWeight = FontWeight.ExtraBold)
                 }
             }
@@ -1242,20 +1322,22 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
     val group = state.selectedGroup ?: return
     val editor = state.expenseEditor
     val selectedCount = editor.selectedParticipantIds.size.coerceAtLeast(1)
-    val amountMinor = ((editor.amount.toDoubleOrNull() ?: 0.0) * 100).toLong()
+    val amountMinor = runCatching {
+        MoneyText.parseUnsignedMinor(editor.amount, CurrencyUnit(group.currency, group.currencyExponent))
+    }.getOrDefault(0L)
     Box(Modifier.fillMaxSize().padding(padding).imePadding()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 88.dp)) {
-            Surface(Modifier.align(Alignment.CenterHorizontally), color = Color.White, shape = CircleShape, shadowElevation = 1.dp) {
+            Surface(Modifier.align(Alignment.CenterHorizontally), color = MaterialTheme.colorScheme.surface, shape = CircleShape, shadowElevation = 0.5.dp) {
                 Row(Modifier.padding(horizontal = 7.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     GroupTile(GroupSummary(group.id, group.name, group.currency, "", group.currentMemberParticipantId, group.revision, group.archived), 30.dp)
                     Text(group.name, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text("⌄", color = SupportText)
+                    Text("⌄", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             OutlinedTextField(
                 value = editor.amount,
                 onValueChange = { onAction(SplitTheBillsAction.ExpenseAmountChanged(it)) },
-                prefix = { Text(currencySymbol(group.currency), color = MutedText, fontSize = 30.sp, fontWeight = FontWeight.Bold) },
+                prefix = { Text(currencySymbol(group.currency), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 30.sp, fontWeight = FontWeight.Bold) },
                 textStyle = MaterialTheme.typography.headlineLarge.copy(fontSize = 48.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
@@ -1276,10 +1358,10 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
                     val selected = editor.category == category
                     Surface(
                         modifier = Modifier.width(76.dp).height(72.dp).clickable { onAction(SplitTheBillsAction.ExpenseCategoryChanged(category)) },
-                        color = if (selected) MaterialTheme.colorScheme.onSurface else Color.White,
-                        contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+                        color = if (selected) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
+                        contentColor = if (selected) MaterialTheme.colorScheme.inverseOnSurface else MaterialTheme.colorScheme.onSurface,
                         shape = RoundedCornerShape(20.dp),
-                        shadowElevation = if (selected) 0.dp else 1.dp,
+                        shadowElevation = if (selected) 0.dp else 0.5.dp,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             Icon(categoryIcon(category), null, Modifier.size(22.dp)); Text(category.lowercase().replaceFirstChar(Char::uppercase), fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -1288,20 +1370,24 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
                 }
             }
             DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
-                OutlinedTextField(editor.date, { onAction(SplitTheBillsAction.ExpenseDateChanged(it)) }, label = { Text("Date") }, leadingIcon = { Text("▣") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OperationDateField(
+                    date = editor.date,
+                    onDateSelected = { onAction(SplitTheBillsAction.ExpenseDateChanged(it)) },
+                    modifier = Modifier.testTag("expense_date"),
+                )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                Text("Paid by", color = SupportText, fontSize = 13.sp, modifier = Modifier.padding(start = 12.dp, top = 10.dp))
+                Text("Paid by", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(start = 12.dp, top = 10.dp))
                 ParticipantChips(group.participants, editor.payerParticipantId) { onAction(SplitTheBillsAction.ExpensePayerChanged(it)) }
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 18.dp), verticalAlignment = Alignment.Bottom) {
                 Text("Split", fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("${editor.selectedParticipantIds.size} of ${group.participants.count(Participant::active)} people", color = MutedText, fontSize = 12.sp)
+                Text("${editor.selectedParticipantIds.size} of ${group.participants.count(Participant::active)} people", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
             ExpenseSplitSegmented(editor.splitMode) { onAction(SplitTheBillsAction.ExpenseModeChanged(it)) }
-            Surface(Modifier.fillMaxWidth().height(9.dp).padding(horizontal = 2.dp, vertical = 1.dp), color = SurfaceMuted, shape = CircleShape) {
-                Row { repeat(selectedCount) { index -> Surface(Modifier.weight(1f).fillMaxHeight(), color = listOf(Positive, Color(0xFF73A5DD), Color(0xFF9CAF55), Color(0xFFD78BB1))[index % 4]) {} } }
+            Surface(Modifier.fillMaxWidth().height(9.dp).padding(horizontal = 2.dp, vertical = 1.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = CircleShape) {
+                Row { repeat(selectedCount) { index -> Surface(Modifier.weight(1f).fillMaxHeight(), color = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.outline)[index % 4]) {} } }
             }
-            Text(if (editor.splitMode == SplitMode.EQUAL) "${formatMinor(amountMinor / selectedCount)} each" else "Allocated", color = MutedText, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 2.dp, vertical = 5.dp))
+            Text(if (editor.splitMode == SplitMode.EQUAL) "${formatMinor(amountMinor / selectedCount, group)} each" else "Allocated", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 2.dp, vertical = 5.dp))
             DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
                 group.participants.filter(Participant::active).forEachIndexed { index, participant ->
                     if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
@@ -1311,7 +1397,7 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
                         Avatar(participant.displayName, 34.dp)
                         Text(if (participant.id == group.currentMemberParticipantId) "You" else participant.displayName, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(start = 9.dp).weight(1f))
                         if (editor.splitMode == SplitMode.EQUAL) {
-                            Text(if (selected) formatMinor(amountMinor / selectedCount) else formatMinor(0), color = if (selected) MaterialTheme.colorScheme.onSurface else MutedText, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                            Text(formatMinor(if (selected) amountMinor / selectedCount else 0, group), color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
                         } else {
                             OutlinedTextField(
                                 value = editor.entryValues[participant.id].orEmpty(),
@@ -1326,16 +1412,16 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
                     }
                 }
             }
-            state.draftNotice?.let { Text(it, color = MutedText, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
+            state.draftNotice?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
         }
-        Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), color = MaterialTheme.colorScheme.background, shadowElevation = 8.dp) {
+        Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), color = MaterialTheme.colorScheme.background, shadowElevation = 1.dp) {
             Button(
                 onClick = { onAction(SplitTheBillsAction.SubmitExpense) },
                 enabled = !state.saving && state.online,
                 modifier = Modifier.fillMaxWidth().padding(12.dp).height(56.dp).testTag("expense_submit"),
                 shape = RoundedCornerShape(18.dp),
             ) {
-                Icon(Icons.Filled.Check, null, Modifier.size(21.dp)); Spacer(Modifier.width(8.dp)); Text(if (editor.expenseId == null) "Save expense · ${formatMinor(amountMinor)}" else "Save changes", fontWeight = FontWeight.ExtraBold)
+                Icon(Icons.Filled.Check, null, Modifier.size(21.dp)); Spacer(Modifier.width(8.dp)); Text(if (editor.expenseId == null) "Save expense · ${formatMinor(amountMinor, group)}" else "Save changes", fontWeight = FontWeight.ExtraBold)
             }
         }
     }
@@ -1344,18 +1430,19 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
 @Composable
 private fun ExpenseSplitSegmented(mode: SplitMode, onSelected: (SplitMode) -> Unit) {
     val options = listOf(SplitMode.EQUAL to "Equally", SplitMode.PERCENTAGE to "Percent", SplitMode.EXACT to "Custom")
-    Surface(Modifier.fillMaxWidth(), color = SurfaceMuted, shape = CircleShape) {
+    Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer, shape = CircleShape) {
         Row(Modifier.padding(4.dp)) {
             options.forEach { (value, label) ->
-                Surface(Modifier.weight(1f).height(36.dp).clickable { onSelected(value) }, color = if (mode == value) Color.White else Color.Transparent, shape = CircleShape, shadowElevation = if (mode == value) 2.dp else 0.dp) {
-                    Box(contentAlignment = Alignment.Center) { Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = if (mode == value) MaterialTheme.colorScheme.onSurface else SupportText) }
+                Surface(Modifier.weight(1f).height(36.dp).clickable { onSelected(value) }, color = if (mode == value) MaterialTheme.colorScheme.surface else Color.Transparent, shape = CircleShape, shadowElevation = if (mode == value) 0.5.dp else 0.dp) {
+                    Box(contentAlignment = Alignment.Center) { Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = if (mode == value) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         }
     }
 }
 
-private fun currencySymbol(currency: String): String = when (currency.uppercase()) { "EUR" -> "€"; "GBP" -> "£"; "JPY" -> "¥"; "MAD" -> "DH"; else -> "$" }
+private fun currencySymbol(currency: String): String =
+    runCatching { java.util.Currency.getInstance(currency).symbol }.getOrDefault(currency)
 
 @Composable
 private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingValues, onAction: (SplitTheBillsAction) -> Unit) {
@@ -1365,47 +1452,176 @@ private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingVal
         Page(padding) { EmptyCard("Expense unavailable", "It may have been removed on another device.") }
         return
     }
-    Page(padding) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    val locale = LocalConfiguration.current.locales[0]
+    Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = Modifier.widthIn(max = 680.dp).fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(bottom = 112.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusPill(
-                    expense.category.lowercase().replaceFirstChar(Char::uppercase),
-                    MaterialTheme.colorScheme.surface.copy(alpha = 0.68f),
-                )
-                Text(expense.title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                Text(format(expense.amountMinor, group), style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    "Paid by ${nameOf(group, expense.contributions.firstOrNull()?.participantId.orEmpty())} · ${expense.date}",
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                )
-            }
-        }
-        FormSection("Confirmed shares", "Calculated and stored by the server.") {
-            expense.allocations.forEachIndexed { index, allocation ->
+            DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(Modifier.size(48.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
+                        Box(contentAlignment = Alignment.Center) { Icon(categoryIcon(expense.category), null, Modifier.size(24.dp)) }
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            expense.title,
+                            fontSize = 23.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            modifier = Modifier.semantics { heading() },
+                        )
+                        Text(
+                            group.name,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(nameOf(group, allocation.participantId))
-                    Text(format(allocation.amountMinor, group), fontWeight = FontWeight.SemiBold)
+                    Text("Total expense", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    StatusPill(expense.category.lowercase().replaceFirstChar(Char::uppercase), MaterialTheme.colorScheme.surfaceContainer)
                 }
-                if (index != expense.allocations.lastIndex) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Text(
+                    format(expense.amountMinor, group),
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-1).sp,
+                    modifier = Modifier.testTag("expense_detail_total"),
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(modifier = Modifier.align(Alignment.CenterVertically), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Outlined.CalendarMonth, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(OperationDate.display(expense.date, locale), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Surface(
+                        modifier = Modifier.align(Alignment.CenterVertically),
+                        color = if (group.fromCache || group.archived) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = if (group.fromCache || group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = CircleShape,
+                    ) {
+                        Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Filled.Check, null, Modifier.size(13.dp))
+                            Text(when { group.archived -> "Archived"; group.fromCache -> "Cached copy"; else -> "Saved" }, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+                ExpenseParticipants(expense, group, Modifier.padding(top = 12.dp))
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SectionHeader("Paid by", null, {})
+                DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
+                    expense.contributions.forEachIndexed { index, contribution ->
+                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                        ExpensePersonRow(
+                            name = nameOf(group, contribution.participantId),
+                            caption = if (contribution.participantId == group.currentMemberParticipantId) "Paid by you" else "Paid toward this expense",
+                            amount = format(contribution.amountMinor, group),
+                            accent = contribution.participantId == group.currentMemberParticipantId,
+                        )
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Confirmed shares", fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).semantics { heading() })
+                    StatusPill("${expense.splitMode.label()} split", MaterialTheme.colorScheme.surfaceContainer)
+                }
+                DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
+                    expense.allocations.forEachIndexed { index, allocation ->
+                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                        ExpensePersonRow(
+                            name = nameOf(group, allocation.participantId),
+                            caption = if (allocation.participantId == group.currentMemberParticipantId) "Your share" else "Share of expense",
+                            amount = format(allocation.amountMinor, group),
+                            accent = allocation.participantId == group.currentMemberParticipantId,
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("Total shares", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                        Text(format(expense.allocations.sumOf { it.amountMinor }, group), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
+            expense.note?.takeIf(String::isNotBlank)?.let { note ->
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionHeader("Note", null, {})
+                    DesignCard(Modifier.fillMaxWidth()) { Text(note, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         }
-        expense.note?.let { note ->
-            FormSection("Note") { Text(note, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onAction(SplitTheBillsAction.EditSelectedExpense) }, enabled = !group.archived) {
-                Text(if (state.online) "Edit" else "Edit draft")
+        Surface(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+            color = MaterialTheme.colorScheme.background,
+            shadowElevation = 1.dp,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Row(
+                    modifier = Modifier.widthIn(max = 680.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Button(
+                        onClick = { onAction(SplitTheBillsAction.EditSelectedExpense) },
+                        enabled = !group.archived && !state.saving,
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp).testTag("expense_detail_edit"),
+                    ) {
+                        Icon(Icons.Outlined.Edit, null, Modifier.size(19.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (state.online) "Edit" else "Edit draft", fontWeight = FontWeight.Bold)
+                    }
+                    OutlinedButton(
+                        onClick = { onAction(SplitTheBillsAction.DeleteSelectedExpense) },
+                        enabled = state.online && !group.archived && !state.saving,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp).testTag("expense_detail_remove"),
+                    ) {
+                        Icon(Icons.Outlined.DeleteOutline, null, Modifier.size(19.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Remove", fontWeight = FontWeight.Bold)
+                    }
+                }
             }
-            OutlinedButton(onClick = { onAction(SplitTheBillsAction.DeleteSelectedExpense) }, enabled = state.online && !group.archived) { Text("Remove") }
         }
+    }
+}
+
+@Composable
+private fun ExpensePersonRow(name: String, caption: String, amount: String, accent: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Avatar(name, 38.dp)
+        Column(Modifier.weight(1f)) {
+            Text(name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+            Text(caption, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
+        Text(
+            amount,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 15.sp,
+            color = if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
@@ -1414,16 +1630,16 @@ private fun SettlementEditorScreen(state: SplitTheBillsUiState, padding: Padding
     val group = state.selectedGroup ?: return
     val form = state.settlementEditor
     Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(group.name, color = MutedText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(group.name, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         Row(Modifier.padding(vertical = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Avatar(nameOf(group, form.fromParticipantId), 58.dp); Text(nameOf(group, form.fromParticipantId), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp)) }
-            Surface(Modifier.size(44.dp), color = Color.White, shape = CircleShape) { Box(contentAlignment = Alignment.Center) { Text("→", fontSize = 22.sp) } }
+            Surface(Modifier.size(44.dp), color = MaterialTheme.colorScheme.surface, shape = CircleShape) { Box(contentAlignment = Alignment.Center) { Text("→", fontSize = 22.sp) } }
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Avatar(nameOf(group, form.toParticipantId), 58.dp); Text(nameOf(group, form.toParticipantId), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp)) }
         }
         OutlinedTextField(
             form.amount,
             { onAction(SplitTheBillsAction.SettlementAmountChanged(it)) },
-            prefix = { Text(currencySymbol(group.currency), color = MutedText, fontSize = 24.sp) },
+            prefix = { Text(currencySymbol(group.currency), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 24.sp) },
             textStyle = MaterialTheme.typography.headlineMedium.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.ExtraBold),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
@@ -1431,15 +1647,19 @@ private fun SettlementEditorScreen(state: SplitTheBillsUiState, padding: Padding
             modifier = Modifier.fillMaxWidth(),
         )
         DesignCard(Modifier.fillMaxWidth().padding(top = 18.dp), contentPadding = PaddingValues(14.dp)) {
-            Text("Paid by", color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Paid by", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             ParticipantChips(group.participants, form.fromParticipantId) { onAction(SplitTheBillsAction.SettlementFromChanged(it)) }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), modifier = Modifier.padding(vertical = 8.dp))
-            Text("Paid to", color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Paid to", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             ParticipantChips(group.participants, form.toParticipantId) { onAction(SplitTheBillsAction.SettlementToChanged(it)) }
         }
-        OutlinedTextField(form.date, { onAction(SplitTheBillsAction.SettlementDateChanged(it)) }, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 14.dp), shape = RoundedCornerShape(16.dp))
+        OperationDateField(
+            date = form.date,
+            onDateSelected = { onAction(SplitTheBillsAction.SettlementDateChanged(it)) },
+            modifier = Modifier.padding(top = 14.dp).testTag("settlement_date"),
+        )
         OutlinedTextField(form.note, { onAction(SplitTheBillsAction.SettlementNoteChanged(it)) }, label = { Text("Note (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), shape = RoundedCornerShape(16.dp))
-        Text("This records money already paid outside Split the Bills. The app does not transfer funds.", color = MutedText, fontSize = 11.sp, modifier = Modifier.padding(12.dp), textAlign = TextAlign.Center)
+        Text("This records money already paid outside Split the Bills. The app does not transfer funds.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(12.dp), textAlign = TextAlign.Center)
         Button(onClick = { onAction(SplitTheBillsAction.SubmitSettlement) }, enabled = !state.saving && state.online, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) {
             Icon(Icons.Filled.Check, null, Modifier.size(20.dp)); Spacer(Modifier.width(7.dp)); Text("Mark as settled", fontWeight = FontWeight.ExtraBold)
         }
@@ -1461,7 +1681,7 @@ private fun SettingsScreen(state: SplitTheBillsUiState, padding: PaddingValues, 
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Avatar(profileDisplayName, 88.dp)
             Text(profileDisplayName, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 10.dp))
-            Text(state.user?.email ?: "Signed in", color = MutedText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(state.user?.email ?: "Signed in", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ProfileMetric(state.groups.size.toString(), "Groups", Modifier.weight(1f))
                 ProfileMetric(state.selectedGroup?.participants?.size?.toString() ?: "0", "Friends", Modifier.weight(1f))
@@ -1482,7 +1702,7 @@ private fun SettingsScreen(state: SplitTheBillsUiState, padding: PaddingValues, 
                 ProfileActionRow("Friends", "${state.selectedGroup?.participants?.size ?: 0} people")
             }
             DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
-                Text("APPEARANCE", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
+                Text("APPEARANCE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ThemePreference.entries.forEach { preference ->
                         DesignChip(preference.name.lowercase().replaceFirstChar(Char::uppercase), state.themePreference == preference) { onAction(SplitTheBillsAction.ThemeChanged(preference)) }
@@ -1496,9 +1716,9 @@ private fun SettingsScreen(state: SplitTheBillsUiState, padding: PaddingValues, 
             DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
                 ProfileActionRow("Help & support", "Get answers and contact us")
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                Row(Modifier.fillMaxWidth().clickable { onAction(SplitTheBillsAction.SignOut) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) { Text("Sign out", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text("→", color = MutedText) }
+                Row(Modifier.fillMaxWidth().clickable { onAction(SplitTheBillsAction.SignOut) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) { Text("Sign out", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text("→", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                TextButton(onClick = { onAction(SplitTheBillsAction.OpenAccountDeletion) }, enabled = !state.saving && state.online, colors = ButtonDefaults.textButtonColors(contentColor = Negative), modifier = Modifier.fillMaxWidth()) { Text("Delete account") }
+                TextButton(onClick = { onAction(SplitTheBillsAction.OpenAccountDeletion) }, enabled = !state.saving && state.online, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary), modifier = Modifier.fillMaxWidth()) { Text("Delete account") }
             }
         }
     }
@@ -1506,16 +1726,16 @@ private fun SettingsScreen(state: SplitTheBillsUiState, padding: PaddingValues, 
 
 @Composable
 private fun ProfileMetric(value: String, label: String, modifier: Modifier = Modifier) {
-    Surface(modifier, color = Color.White, shape = RoundedCornerShape(18.dp)) { Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold); Text(label, color = MutedText, fontSize = 11.sp) } }
+    Surface(modifier, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(18.dp)) { Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold); Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp) } }
 }
 
 @Composable
 private fun ProfileActionRow(title: String, subtitle: String, showChevron: Boolean = true, onClick: (() -> Unit)? = null, extra: (@Composable ColumnScope.() -> Unit)? = null) {
     Column(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 10.dp, vertical = 11.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Surface(Modifier.size(40.dp), color = SurfaceMuted, shape = RoundedCornerShape(12.dp)) { Box(contentAlignment = Alignment.Center) { Text(title.take(1), fontWeight = FontWeight.ExtraBold) } }
-            Column(Modifier.weight(1f).padding(start = 12.dp)) { Text(title, fontWeight = FontWeight.Bold); Text(subtitle, color = MutedText, fontSize = 12.sp) }
-            if (showChevron) Text("›", color = MutedText, fontSize = 22.sp)
+            Surface(Modifier.size(40.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(12.dp)) { Box(contentAlignment = Alignment.Center) { Text(title.take(1), fontWeight = FontWeight.ExtraBold) } }
+            Column(Modifier.weight(1f).padding(start = 12.dp)) { Text(title, fontWeight = FontWeight.Bold); Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
+            if (showChevron) Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 22.sp)
         }
         extra?.invoke(this)
     }

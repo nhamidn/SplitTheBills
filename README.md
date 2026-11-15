@@ -4,6 +4,10 @@ Split the Bills is a native Android shared-expense app with an original “Clear
 calmer plans” visual identity. The Firebase backend is designed as a platform-neutral API
 so an iOS client can use the same records and business rules.
 
+For a step-by-step local server and Android virtual-device walkthrough, see
+[Development and emulator testing](docs/development.md). It includes prerequisites,
+server health checks, device routing, manual testing, and troubleshooting.
+
 ## Current status
 
 Milestones 1 through 6 are implemented: the Android/build foundation, responsive Compose UI,
@@ -17,8 +21,8 @@ balances, activity, revisions, and idempotency receipts in Firestore transaction
 deny direct client writes and private backend-collection access.
 
 Android now supports email account creation/sign-in, password reset, Google Credential
-Manager sign-in, sign-out, group creation, named participants, live group details, all four
-expense split modes, confirmed expense detail, edit/soft-delete, balances, activity, and
+Manager sign-in, sign-out, group creation, named participants, live group details,
+equal/exact/percentage expense entry, confirmed expense detail, edit/soft-delete, balances, activity, and
 external repayment recording. Shared writes are connectivity-gated and expose saving,
 failure, retry, and actionable stale-revision conflict states. Owners can create and revoke
 one-time invitation links/codes and explicitly approve member-to-participant links; signed-in
@@ -29,14 +33,16 @@ A physical-device integration test covers account creation through a server-conf
 against the local emulators. Settings now persist System/Light/Dark appearance, update the
 Firebase Auth display name, and provide explicit account deletion with owner-transfer choices,
 typed confirmation, server-first cleanup, account-scoped Room cleanup, and Firestore cache
-erasure. Compact layouts use bottom navigation, expanded layouts use a rail, long action groups
+erasure. The current UI uses bottom navigation, long action groups
 wrap, important status changes are announced, and release builds run the optimized AGP/R8
 pipeline. See [docs/implementation-roadmap.md](docs/implementation-roadmap.md).
 
 ## Prerequisites
 
-- Android Studio with Android SDK 37 and JDK 21+ (the current Emulator Suite requires 21)
-- Node.js 22.13+ and npm
+- Android Studio with Android SDK 37; this checkout pins the Gradle daemon to JDK 25
+  and uses a JDK 17 toolchain for `core:domain` (Gradle can provision these).
+  The Firebase Emulator Suite separately needs Java 21+ on the terminal's `PATH`.
+- Node.js 22 (`.nvmrc` pins 22.13.1) and npm
 - An Android emulator; API 24 is the minimum supported version
 
 The Gradle wrapper and Firebase CLI are project-pinned. No global CLI install is required.
@@ -56,7 +62,7 @@ The Gradle wrapper and Firebase CLI are project-pinned. No global CLI install is
 2. Install and check the backend:
 
    ```bash
-   npm --prefix functions install
+   npm --prefix functions ci
    npm --prefix functions run check
    npm --prefix functions run build
    ```
@@ -76,11 +82,11 @@ The Gradle wrapper and Firebase CLI are project-pinned. No global CLI install is
    npm --prefix functions run emulators
    ```
 
-   `java -version` must report 21 or newer, and Node must report 22.13 or newer. These
+   `java -version` must report 21 or newer, and Node must report the pinned Node 22 version. These
    exports apply to steps 5 and 6 when they are run in the same terminal. On Linux or
    Windows, point `JAVA_HOME` at an installed JDK 21+ using the platform's normal mechanism.
    An `.nvmrc` is committed, so nvm installs/selects the tested Node version. If nvm is not
-   installed, select another Node 22.13+ installation before running the npm command. The
+   installed, select another compatible Node 22 installation before running the npm command. The
    `emulators` script fails fast on an incompatible runtime.
    Do not rely only on the emulator's final “All emulators ready” banner: the Functions
    section must also list the discovered `v1...` handlers. If startup contains
@@ -154,7 +160,7 @@ The Gradle wrapper and Firebase CLI are project-pinned. No global CLI install is
    it with Node 22.13+.
 
    Invitation testing uses two signed-in accounts. From an owner account, open a group and
-   choose **Manage members and invitations**, create a code, then sign into the second account
+   choose **Manage people** (the person-plus icon), create a code, then sign into the second account
    and choose **Have an invitation?**. After redemption, return to the owner to approve the
    exact member/participant link. For a local explicit App Link test (the committed domain is
    intentionally not verified), target the activity directly with a disposable emulator token:
@@ -188,4 +194,3 @@ The final device/layout and release checklist is in
 
 Calculation rules and their cross-platform implementation requirements are specified in
 [docs/calculations-v1.md](docs/calculations-v1.md).
-# SplitTheBills

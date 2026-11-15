@@ -3,13 +3,16 @@ package com.dts.splitthebill
 import android.view.View
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.test.espresso.Espresso.closeSoftKeyboard
 import com.google.firebase.auth.FirebaseAuth
 import org.junit.After
 import org.junit.Rule
@@ -42,21 +45,29 @@ class ExpenseJourneyEmulatorTest {
         compose.onNodeWithTag("auth_password").performTextInput("correcthorse")
         compose.onNodeWithTag("auth_submit").performClick()
 
-        compose.waitUntilAtLeastOneExists(hasText("New group"), timeoutMillis = 15_000)
-        compose.onNodeWithText("New group").performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Groups"), timeoutMillis = 15_000)
+        compose.onNodeWithContentDescription("Groups").performClick()
+        compose.onNodeWithText("Create a group").performScrollTo().performClick()
         compose.onNodeWithTag("group_name").performTextInput("Android journey $suffix")
         compose.onNodeWithTag("participant_name").performTextInput("Alex")
         compose.onNodeWithTag("group_submit").performScrollTo().performClick()
 
         compose.waitUntilAtLeastOneExists(hasText("Add expense"), timeoutMillis = 15_000)
-        compose.onNodeWithTag("group_participant_name").performTextInput("Blair")
-        compose.onNodeWithTag("group_participant_submit").performClick()
+        compose.onNodeWithContentDescription("Manage people").performClick()
+        compose.onNodeWithTag("group_participant_name").performScrollTo().performTextInput("Blair")
+        compose.onNodeWithTag("group_participant_submit").performScrollTo().performClick()
         compose.waitUntilAtLeastOneExists(hasText("Blair"), timeoutMillis = 10_000)
+        closeSoftKeyboard()
+        compose.onNodeWithContentDescription("Back").performClick()
+        // The confirmation snackbar temporarily covers the floating Add expense button.
+        compose.waitUntilDoesNotExist(hasText("Participant added"), timeoutMillis = 10_000)
         compose.onNodeWithText("Add expense").performClick()
 
+        compose.waitUntilAtLeastOneExists(hasTestTag("expense_title"), timeoutMillis = 10_000)
         compose.onNodeWithTag("expense_title").performTextInput("Shared lunch")
         compose.onNodeWithTag("expense_amount").performTextInput("12.00")
-        compose.onNodeWithTag("expense_submit").performScrollTo().performClick()
+        closeSoftKeyboard()
+        compose.onNodeWithTag("expense_submit").performClick()
 
         compose.waitUntilAtLeastOneExists(hasText("Confirmed shares"), timeoutMillis = 15_000)
         compose.onNodeWithText("Shared lunch").assertIsDisplayed()

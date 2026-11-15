@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, test } from "node:test";
 import { API_VERSION, getApiInfo } from "./contracts.js";
+import { currencyMetadata } from "./backend/currency.js";
+
+test("every currency offered by the client is accepted by the backend", () => {
+  const catalog = JSON.parse(readFileSync(
+    new URL("../../shared/contracts/v1/currencies.json", import.meta.url), "utf8",
+  )) as { apiVersion: string; codes: string[] };
+  assert.equal(catalog.apiVersion, API_VERSION);
+  assert.deepEqual(catalog.codes, Intl.supportedValuesOf("currency"));
+  for (const code of catalog.codes) assert.equal(currencyMetadata(code).code, code);
+});
 
 describe("API info", () => {
   afterEach(() => {

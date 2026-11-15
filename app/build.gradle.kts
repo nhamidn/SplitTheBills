@@ -62,6 +62,7 @@ android {
         buildConfig = true
         compose = true
     }
+    sourceSets.getByName("main").assets.srcDir(rootProject.file("shared/contracts/v1"))
 }
 
 room {

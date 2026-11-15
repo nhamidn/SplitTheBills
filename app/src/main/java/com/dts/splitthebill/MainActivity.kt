@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.NoCredentialException
@@ -44,6 +45,13 @@ class MainActivity : ComponentActivity() {
                 ThemePreference.SYSTEM -> systemDark
                 ThemePreference.LIGHT -> false
                 ThemePreference.DARK -> true
+            }
+            LaunchedEffect(darkTheme) {
+                val barStyle = SystemBarStyle.auto(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT,
+                ) { darkTheme }
+                enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
             }
             SplitTheBillsTheme(darkTheme = darkTheme) {
                 val invitationToken = pendingInvitationToken.collectAsStateWithLifecycle()
