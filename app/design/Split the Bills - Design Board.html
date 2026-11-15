@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Split the Bills — Design Board</title>
+<link rel="stylesheet" href="stb/stb.css" />
+<style>
+  html, body { margin: 0; height: 100%; background: #E9E8E3; }
+  .ds { font-family: 'Manrope', sans-serif; color: #1B1E1D; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design_canvas.jsx"></script>
+<script type="text/babel" src="android_frame.jsx"></script>
+<script type="text/babel" src="stb/data.jsx"></script>
+<script type="text/babel" src="stb/ui.jsx"></script>
+<script type="text/babel" src="stb/screens-home.jsx"></script>
+<script type="text/babel" src="stb/screens-balances.jsx"></script>
+<script type="text/babel" src="stb/screens-add.jsx"></script>
+<script type="text/babel" src="stb/app.jsx"></script>
+<script type="text/babel">
+const W = 412, H = 892;
+const Board = ({ id, label, nav, settle }) => (
+  <DCArtboard id={id} label={label} width={W} height={H}>
+    <div className="static"><StbPhone><StbApp initial={nav} settleInit={settle} /></StbPhone></div>
+  </DCArtboard>
+);
+
+function Swatch({ c, name, hex }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ height: 88, borderRadius: 20, background: c, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.06)' }} />
+      <div style={{ fontSize: 14, fontWeight: 800 }}>{name}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#8E9491', fontFamily: 'ui-monospace, monospace' }}>{hex}</div>
+    </div>
+  );
+}
+
+function SystemBoard() {
+  return (
+    <div className="ds stb" style={{ width: 860, height: 892, background: '#F5F4F0', borderRadius: 28, padding: 44, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 36 }}>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: '#1B1E1D', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '50%', background: 'oklch(0.56 0.12 160)' }} />
+            <Icon name="receipt_long" size={28} color="#fff" style={{ position: 'relative' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -1 }}>Split the Bills</div>
+            <div style={{ fontSize: 14, color: '#5C6260', fontWeight: 600 }}>Visual system · Material 3 foundation</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16 }}>
+        <Swatch c="#F5F4F0" name="Canvas" hex="#F5F4F0" />
+        <Swatch c="#FFFFFF" name="Surface" hex="#FFFFFF" />
+        <Swatch c="#1B1E1D" name="Charcoal" hex="#1B1E1D" />
+        <Swatch c="oklch(0.56 0.12 160)" name="Emerald" hex="#1A8A5C" />
+        <Swatch c="oklch(0.63 0.15 33)" name="Coral" hex="#D9634A" />
+        <Swatch c="#EDECE7" name="Muted" hex="#EDECE7" />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 32 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#8E9491', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 14 }}>Type · Manrope</div>
+          <div className="num" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1.6, lineHeight: 1 }}>+$1,284.06</div>
+          <div style={{ fontSize: 12, color: '#8E9491', fontWeight: 600, margin: '4px 0 14px' }}>Display · 44–56 / ExtraBold / tabular</div>
+          <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.6 }}>Lisbon Trip</div>
+          <div style={{ fontSize: 12, color: '#8E9491', fontWeight: 600, margin: '2px 0 12px' }}>Title · 20–24 / ExtraBold</div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>Dinner at Taberna</div>
+          <div style={{ fontSize: 13, color: '#8E9491', fontWeight: 500 }}>Priya paid $186.50 · Lisbon Trip</div>
+          <div style={{ fontSize: 12, color: '#8E9491', fontWeight: 600, marginTop: 4 }}>Body · 15 Bold / Support · 12.5 Medium</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#8E9491', letterSpacing: 0.6, textTransform: 'uppercase' }}>Components</div>
+          <button className="btn-primary" style={{ height: 52 }}><Icon name="check" size={22} />Save expense</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Chip active>All · 4</Chip><Chip>Trip</Chip><Chip icon="payments">Cash</Chip>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <StatusPill status="completed" /><StatusPill status="pending" />
+            <AvatarStack ids={['me','priya','leo','jonas','aiko']} size={30} max={4} ring="#F5F4F0" />
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <CatTile cat="food" /><CatTile cat="transport" tone="pos" /><CatTile cat="stay" tone="neg" />
+            <GroupTile group={STB_GROUPS_SEED[0]} size={44} radius={14} /><GroupTile group={STB_GROUPS_SEED[1]} size={44} radius={14} />
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 'auto' }}>
+        {[['Radius', 'Cards 24 · Tiles 14–20 · Pills 999'], ['Spacing', '4-pt grid · screen gutter 16 · card pad 16–20'], ['Semantics', 'Emerald = owed to you · Coral = you owe · always paired with a label']].map(([a, b]) => (
+          <div key={a} style={{ background: '#fff', borderRadius: 20, padding: 18 }}>
+            <div style={{ fontSize: 14, fontWeight: 800 }}>{a}</div>
+            <div style={{ fontSize: 13, color: '#5C6260', fontWeight: 500, marginTop: 4, lineHeight: 1.45 }}>{b}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BoardApp() {
+  return (
+    <DesignCanvas>
+      <DCSection id="system" title="Split the Bills" subtitle="Premium fintech, friendly · charcoal + emerald / coral on warm off-white">
+        <DCArtboard id="sys" label="Visual system" width={860} height={892}><SystemBoard /></DCArtboard>
+      </DCSection>
+      <DCSection id="core" title="Core navigation" subtitle="Bottom nav: Home · Groups · Activity · Profile">
+        <Board id="home" label="01 Home dashboard" nav={{ tab: 'home', stack: [] }} />
+        <Board id="groups" label="02 Groups" nav={{ tab: 'groups', stack: [] }} />
+        <Board id="activity" label="03 Activity timeline" nav={{ tab: 'activity', stack: [] }} />
+        <Board id="profile" label="04 Profile" nav={{ tab: 'profile', stack: [] }} />
+      </DCSection>
+      <DCSection id="group" title="Group detail" subtitle="Expenses, simplified balances, and member contributions">
+        <Board id="g-exp" label="05 Group · Expenses" nav={{ tab: 'groups', stack: [{ name: 'group', id: 'lisbon', tab: 'expenses' }] }} />
+        <Board id="g-bal" label="06 Group · Balances" nav={{ tab: 'groups', stack: [{ name: 'group', id: 'lisbon', tab: 'balances' }] }} />
+        <Board id="g-mem" label="07 Group · Members" nav={{ tab: 'groups', stack: [{ name: 'group', id: 'lisbon', tab: 'members' }] }} />
+      </DCSection>
+      <DCSection id="add" title="Add expense" subtitle="Equal, percentage, and custom splits with live allocation bar">
+        <Board id="add-eq" label="08 Split equally" nav={{ tab: 'home', stack: [{ name: 'add', group: 'elm' }] }} />
+        <Board id="add-pct" label="09 Split by percent" nav={{ tab: 'home', stack: [{ name: 'add', group: 'friday', preset: { mode: 'percent', title: 'Birthday cake', amount: '72.00', cat: 'fun' } }] }} />
+        <Board id="add-cus" label="10 Custom amounts" nav={{ tab: 'home', stack: [{ name: 'add', group: 'couple', preset: { mode: 'custom', title: 'Weekend groceries', amount: '94.60', cat: 'groceries' } }] }} />
+      </DCSection>
+      <DCSection id="settle" title="Balances & settlements" subtitle="Who owes whom, and closing the loop">
+        <Board id="bal" label="11 Balances overview" nav={{ tab: 'home', stack: [{ name: 'balances' }] }} />
+        <Board id="settle-sheet" label="12 Settle up sheet" nav={{ tab: 'groups', stack: [{ name: 'group', id: 'lisbon', tab: 'balances' }] }} settle={{ group: 'lisbon', ...(stbSimplify(stbNet('lisbon', STB_EXPENSES_SEED, STB_SETTLEMENTS_SEED)).find((d) => d.to === 'me' || d.from === 'me')) }} />
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<BoardApp />);
+</script>
+</body>
+</html>

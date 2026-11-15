@@ -1,0 +1,57 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isGroupMember(groupId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+    }
+
+    // Clients may observe their profile and denormalized group summaries. All changes
+    // are made by callable Functions using the Admin SDK.
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      allow write: if false;
+
+      match /groups/{groupId} {
+        allow read: if isSelf(uid);
+        allow write: if false;
+      }
+    }
+
+    match /groups/{groupId} {
+      allow read: if isGroupMember(groupId);
+      allow write: if false;
+
+      match /{document=**} {
+        allow read: if isGroupMember(groupId);
+        allow write: if false;
+      }
+    }
+
+    // Tokens and operation receipts are server-only, including for reads.
+    match /invitations/{inviteId} {
+      allow read, write: if false;
+    }
+
+    match /operationReceipts/{receiptId} {
+      allow read, write: if false;
+    }
+
+    match /invitationRateLimits/{rateLimitId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

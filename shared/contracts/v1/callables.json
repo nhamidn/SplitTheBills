@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contractVersion": "v1",
+  "region": "europe-west1",
+  "safeIntegerMaximum": 9007199254740991,
+  "requestEnvelope": {
+    "required": ["apiVersion", "operationId"],
+    "apiVersion": "v1",
+    "operationIdFormat": "uuid",
+    "unknownFields": "reject"
+  },
+  "splitModes": {
+    "EQUAL": { "entryFields": ["participantId"] },
+    "EXACT": { "entryFields": ["participantId", "amountMinor"], "sum": "expense.amountMinor" },
+    "PERCENTAGE": { "entryFields": ["participantId", "basisPoints"], "sum": 10000 },
+    "WEIGHTED": { "entryFields": ["participantId", "shares"], "minimumShares": 1 }
+  },
+  "callables": [
+    { "name": "v1ApiInfo", "authorization": "public-metadata", "mutation": false },
+    { "name": "v1CreateGroup", "authorization": "authenticated", "mutation": true },
+    { "name": "v1RenameGroup", "authorization": "owner", "mutation": true, "expectedRevision": true },
+    { "name": "v1ArchiveGroup", "authorization": "owner", "mutation": true, "expectedRevision": true },
+    { "name": "v1CreateParticipant", "authorization": "owner", "mutation": true },
+    { "name": "v1CreateInvitation", "authorization": "owner", "mutation": true },
+    { "name": "v1ListInvitations", "authorization": "owner", "mutation": false },
+    { "name": "v1RevokeInvitation", "authorization": "owner", "mutation": true, "expectedRevision": true },
+    { "name": "v1RedeemInvitation", "authorization": "authenticated", "mutation": true },
+    { "name": "v1ApproveParticipantLink", "authorization": "owner", "mutation": true, "expectedRevision": true },
+    { "name": "v1CreateExpense", "authorization": "member", "mutation": true },
+    { "name": "v1UpdateExpense", "authorization": "creator-or-owner", "mutation": true, "expectedRevision": true },
+    { "name": "v1DeleteExpense", "authorization": "creator-or-owner", "mutation": true, "expectedRevision": true },
+    { "name": "v1CreateSettlement", "authorization": "member", "mutation": true },
+    { "name": "v1UpdateSettlement", "authorization": "creator-or-owner", "mutation": true, "expectedRevision": true },
+    { "name": "v1DeleteSettlement", "authorization": "creator-or-owner", "mutation": true, "expectedRevision": true },
+    {
+      "name": "v1DeleteAccount",
+      "authorization": "authenticated",
+      "mutation": true,
+      "request": {
+        "confirmation": { "const": "DELETE" },
+        "ownershipTransfers": {
+          "type": "array",
+          "items": {
+            "required": ["groupId", "newOwnerUid", "expectedRevision"],
+            "unknownFields": "reject"
+          }
+        }
+      },
+      "responseExtras": { "transferredGroupIds": "sorted group ID array" }
+    }
+  ],
+  "stableErrorCodes": [
+    "UNAUTHENTICATED",
+    "APP_CHECK_REQUIRED",
+    "INVALID_ARGUMENT",
+    "NOT_A_MEMBER",
+    "OWNER_REQUIRED",
+    "RECORD_EDIT_FORBIDDEN",
+    "NOT_FOUND",
+    "STALE_REVISION",
+    "OPERATION_ID_REUSED",
+    "GROUP_ARCHIVED",
+    "CURRENCY_LOCKED",
+    "BALANCE_INVARIANT_FAILED",
+    "INVITATION_EXPIRED",
+    "INVITATION_REVOKED",
+    "INVITATION_EXHAUSTED",
+    "RATE_LIMITED",
+    "OWNER_TRANSFER_REQUIRED"
+  ]
+}

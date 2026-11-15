@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Split the Bills — Prototype</title>
+<link rel="stylesheet" href="stb/stb.css" />
+<style>
+  html, body { margin: 0; height: 100%; background: #E9E8E3; overflow: hidden; }
+  #root { height: 100%; display: flex; align-items: center; justify-content: center; }
+  .fit { transform-origin: center; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="android_frame.jsx"></script>
+<script type="text/babel" src="stb/data.jsx"></script>
+<script type="text/babel" src="stb/ui.jsx"></script>
+<script type="text/babel" src="stb/screens-home.jsx"></script>
+<script type="text/babel" src="stb/screens-balances.jsx"></script>
+<script type="text/babel" src="stb/screens-add.jsx"></script>
+<script type="text/babel" src="stb/app.jsx"></script>
+<script type="text/babel">
+function Proto() {
+  const [s, setS] = React.useState(1);
+  React.useEffect(() => {
+    const f = () => setS(Math.min(1, (window.innerHeight - 32) / 892, (window.innerWidth - 32) / 412));
+    f(); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f);
+  }, []);
+  return (
+    <div className="fit" style={{ transform: `scale(${s})` }}>
+      <StbPhone><StbApp persist /></StbPhone>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Proto />);
+</script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+{
+  "fixtureVersion": "v1",
+  "currencyExponents": {
+    "EUR": 2,
+    "JPY": 0,
+    "KWD": 3
+  },
+  "moneyTextCases": [
+    { "id": "eur-short-fraction", "code": "EUR", "exponent": 2, "input": "12.3", "expectedMinor": 1230, "expectedFormatted": "12.30" },
+    { "id": "jpy-zero-decimals", "code": "JPY", "exponent": 0, "input": "42", "expectedMinor": 42, "expectedFormatted": "42" },
+    { "id": "kwd-three-decimals", "code": "KWD", "exponent": 3, "input": "0.007", "expectedMinor": 7, "expectedFormatted": "0.007" },
+    { "id": "clf-four-decimals", "code": "CLF", "exponent": 4, "input": "1.2345", "expectedMinor": 12345, "expectedFormatted": "1.2345" }
+  ],
+  "cases": [
+    {
+      "id": "equal-remainder-stable-id",
+      "amountMinor": 100,
+      "currency": "EUR",
+      "split": {
+        "mode": "EQUAL",
+        "entries": [
+          { "participantId": "p-c" },
+          { "participantId": "p-a" },
+          { "participantId": "p-b" }
+        ]
+      },
+      "expectedAllocations": [
+        { "participantId": "p-a", "amountMinor": 34 },
+        { "participantId": "p-b", "amountMinor": 33 },
+        { "participantId": "p-c", "amountMinor": 33 }
+      ]
+    },
+    {
+      "id": "zero-decimal-currency",
+      "amountMinor": 10,
+      "currency": "JPY",
+      "split": {
+        "mode": "WEIGHTED",
+        "entries": [
+          { "participantId": "p-a", "shares": 1 },
+          { "participantId": "p-b", "shares": 2 },
+          { "participantId": "p-c", "shares": 3 }
+        ]
+      },
+      "expectedAllocations": [
+        { "participantId": "p-a", "amountMinor": 2 },
+        { "participantId": "p-b", "amountMinor": 3 },
+        { "participantId": "p-c", "amountMinor": 5 }
+      ]
+    },
+    {
+      "id": "percentage-largest-remainder",
+      "amountMinor": 101,
+      "currency": "KWD",
+      "split": {
+        "mode": "PERCENTAGE",
+        "entries": [
+          { "participantId": "p-a", "basisPoints": 3333 },
+          { "participantId": "p-b", "basisPoints": 3333 },
+          { "participantId": "p-c", "basisPoints": 3334 }
+        ]
+      },
+      "expectedAllocations": [
+        { "participantId": "p-a", "amountMinor": 34 },
+        { "participantId": "p-b", "amountMinor": 33 },
+        { "participantId": "p-c", "amountMinor": 34 }
+      ]
+    },
+    {
+      "id": "exact-allocation",
+      "amountMinor": 4250,
+      "currency": "EUR",
+      "split": {
+        "mode": "EXACT",
+        "entries": [
+          { "participantId": "p-a", "amountMinor": 1000 },
+          { "participantId": "p-b", "amountMinor": 3250 }
+        ]
+      },
+      "expectedAllocations": [
+        { "participantId": "p-a", "amountMinor": 1000 },
+        { "participantId": "p-b", "amountMinor": 3250 }
+      ]
+    }
+  ],
+  "balanceCases": [
+    {
+      "id": "expense-and-settlement-direction",
+      "expense": {
+        "totalMinor": 1000,
+        "contributions": [{ "participantId": "p-a", "amountMinor": 1000 }],
+        "allocations": [
+          { "participantId": "p-a", "amountMinor": 500 },
+          { "participantId": "p-b", "amountMinor": 300 },
+          { "participantId": "p-c", "amountMinor": 200 }
+        ]
+      },
+      "expectedExpenseBalances": { "p-a": 500, "p-b": -300, "p-c": -200 },
+      "settlement": { "fromParticipantId": "p-b", "toParticipantId": "p-a", "amountMinor": 150 },
+      "expectedAfterSettlement": { "p-a": 350, "p-b": -150, "p-c": -200 }
+    }
+  ],
+  "repaymentCases": [
+    {
+      "id": "largest-first-with-stable-debtor-tie",
+      "balances": { "p-a": 700, "p-b": 300, "p-c": -500, "p-d": -500 },
+      "expected": [
+        { "fromParticipantId": "p-c", "toParticipantId": "p-a", "amountMinor": 500 },
+        { "fromParticipantId": "p-d", "toParticipantId": "p-b", "amountMinor": 300 },
+        { "fromParticipantId": "p-d", "toParticipantId": "p-a", "amountMinor": 200 }
+      ]
+    },
+    {
+      "id": "stable-creditor-tie",
+      "balances": { "p-a": 500, "p-b": 500, "p-c": -1000 },
+      "expected": [
+        { "fromParticipantId": "p-c", "toParticipantId": "p-a", "amountMinor": 500 },
+        { "fromParticipantId": "p-c", "toParticipantId": "p-b", "amountMinor": 500 }
+      ]
+    }
+  ]
+}

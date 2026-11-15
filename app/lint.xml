@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Android Studio in this environment supports AGP 9.3.0, so newer-version
+         suggestions are intentionally deferred until the IDE compatibility floor moves. -->
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+</lint>
