@@ -7,6 +7,10 @@ the Firebase Local Emulator Suite: Auth, Firestore, and callable Cloud Functions
 no separate web frontend server. The browser UI on port 4000 is a backend administration
 tool; use the Android application to test the product.
 
+For testing **real Firebase** on the running virtual device, follow
+[Real Firebase testing and production deployment](firebase-setup.md) and select the
+`staging` Android variant. That workflow does not need the local server processes below.
+
 | Location | Responsibility |
 | --- | --- |
 | `app/` | Kotlin/Compose Android UI, Hilt ViewModel/repositories, Firebase client integration |
@@ -193,11 +197,36 @@ choose **Have an invitation? Join a group** and redeem it. Return to the owner a
 approve the member-to-participant link. A named participant and an authenticated member
 are distinct identities; invitation capacity depends on available participant places.
 
-Current UI limits: the expense selector exposes **Equally**, **Percent**, and **Custom**;
-the domain/API also supports weighted shares. Some visible controls (including search,
-Export, and Remind) have empty click handlers. Do not use these as evidence of a backend
-failure. See the source and [implementation-roadmap.md](implementation-roadmap.md) alongside
-the older implementation/release snapshots when checking feature coverage.
+The expense selector supports **Equally**, **Percent**, **Custom**, and weighted **Shares**.
+Enter ordinary percentages such as `50` or `33.33`; they must total 100%. The client converts
+them to the API's integer basis points. Previewed shares use the shared calculator, including
+the final rounding cents, and the saved detail always displays server-confirmed allocations.
+
+The formerly decorative controls now have working flows. See the complete
+[feature audit](feature-audit.md) for each control's data source and verification coverage.
+To exercise the additional features:
+
+1. From Home or Groups, use **Add expense**, choose a group, and verify its name/currency in
+   the form. Search finds groups, expenses, notes, categories, dates, and repayments across
+   all loaded memberships. Group type filters use the type saved during group creation.
+2. Use **Remind**, select an amount owed to you, edit the message, then choose **Share reminder**
+   to open Android's app chooser. You choose the recipient in that app. Only live, consistent,
+   online balances are actionable; a repayment or deleted expense invalidates an open reminder.
+3. Open **Notifications** after another group member changes a record. Open the referenced
+   expense/repayment or group, then **Mark all as read**. Unread state persists on this device
+   separately for each account. This inbox uses server-written group activity.
+4. In a group, choose **Export**, select a document location, and save the CSV. It includes
+   expenses, allocations, repayments, and notes from the loaded records. Cancelling the system
+   picker does not report a successful save. Cached exports reflect the loaded cached copy.
+5. Record a partial repayment from **Balances**, open its payment history entry, edit its
+   amount/note/date, and remove it after confirmation. Verify balances after each action.
+   Creators and group owners can edit/remove; an archived group remains read-only financially.
+6. Use **Group options** to rename/change the type or confirm archiving. **Members** lists
+   participants and **History** displays server-written events, including edits and removals.
+7. In Profile, test default currency on a newly created group, **Simplify debts**, theme,
+   **Friends**, **Help & support**, and **Biometric lock**. Lock changes require successful
+   system authentication, and reopening a locked app requires authentication again. Device
+   screen lock/biometric enrollment must already be configured in Android settings.
 
 ## 6. Run the existing automated checks
 
@@ -212,11 +241,15 @@ With terminal A still running and device forwarding configured, run Android test
 existing emulator:
 
 ```bash
-ANDROID_SERIAL=emulator-5554 ./gradlew :app:connectedDebugAndroidTest
+ANDROID_SERIAL=emulator-5554 ./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true
 ```
 
 The expense journey creates disposable local users/groups and signs out afterward. It
-follows the current group/people screens and waits for the confirmation snackbar to clear.
+tests account creation, an equal expense, percentage editing with a note, and repayment
+creation/edit/removal, checking actual server balances at each step. Additional device tests
+cover reminders and chooser payloads, stale reminder invalidation, search, group filters,
+notification navigation, permissions, settings persistence, and the fingerprint fallback theme.
 Reports are written below
 `app/build/reports/androidTests/connected/`; JVM reports are under each module's
 `build/reports/tests/`.
@@ -300,7 +333,18 @@ that those records exist on the restarted server.
 Real Firebase, Google sign-in, staging, and deployment are documented separately in
 [firebase-setup.md](firebase-setup.md).
 
-## Verified on 2026-11-15
+## Verified on 2026-11-16
+
+- 44 Kotlin/JVM tests passed (35 app, 9 domain), along with debug lint and APK compilation.
+- Staging and optimized unsigned release APK builds passed.
+- All 20 Android device tests passed on the existing API 37 virtual device.
+- The expanded Firebase-backed journey also verified percentage editing, repayment
+  creation/edit/removal and balance reversal, plus a CSV document callback and saved contents.
+- Backend lint/build, 12 contract/domain tests, 9 deployment-script tests, and the existing
+  Auth/Firestore/Functions integration scenario passed against the running local suite.
+- Test accounts/groups are disposable additions; the shared emulator database was not cleared.
+
+## Previous verification on 2026-11-15
 
 On Linux with Node 22.13.1, Java 25, and the existing Pixel 9 API 37 virtual device
 (`emulator-5554`):
