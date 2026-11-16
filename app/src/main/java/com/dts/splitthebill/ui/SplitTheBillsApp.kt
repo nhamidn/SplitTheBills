@@ -102,6 +102,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -503,7 +504,23 @@ private fun BalanceHero(balance: Long, owed: Long, owe: Long, group: GroupDetail
             Text("Total balance", color = colors.supporting, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Text(formatMinorSigned(balance, group), color = if (balance >= 0) colors.content else colors.negative, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.2).sp)
             Text(if (balance >= 0) "Overall, friends owe you" else "Overall, you owe friends", color = colors.supporting, fontSize = 13.sp)
-            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val totalShares = owed.toDouble() + owe.toDouble()
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(8.dp)
+                    .clip(CircleShape)
+                    .background(colors.content.copy(alpha = 0.12f))
+                    .semantics {
+                        contentDescription = "You are owed ${formatMinor(owed, group)}; you owe ${formatMinor(owe, group)}"
+                    },
+            ) {
+                if (owed > 0L) {
+                    Box(Modifier.weight((owed / totalShares).toFloat()).fillMaxHeight().background(colors.positive))
+                }
+                if (owe > 0L) {
+                    Box(Modifier.weight((owe / totalShares).toFloat()).fillMaxHeight().background(colors.negative))
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 DarkMetric("You are owed", owed, colors.positive, group, Modifier.weight(1f))
                 DarkMetric("You owe", owe, colors.negative, group, Modifier.weight(1f))
             }
@@ -524,7 +541,10 @@ private fun DarkMetric(label: String, amount: Long, color: Color, group: GroupDe
     val colors = LocalBalanceCardColors.current
     Surface(modifier, color = colors.content.copy(alpha = 0.07f), contentColor = colors.content, shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(13.dp)) {
-            Text(label, color = colors.supporting, fontSize = 12.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.size(6.dp).background(color, CircleShape))
+                Text(label, color = colors.supporting, fontSize = 12.sp)
+            }
             Text(formatMinor(amount, group), color = color, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
