@@ -411,9 +411,9 @@ class FirebaseGroupsRepository @Inject constructor(
     private fun activity(document: DocumentSnapshot): ActivityEvent? {
         val type = document.getString("type") ?: return null
         val summary = document.get("summary") as? Map<*, *>
-        val description = summary?.get("title")?.toString()
+        val subject = summary?.get("title")?.toString()
             ?: summary?.get("name")?.toString()
-            ?: type.lowercase().replace('_', ' ')
+        val description = subject ?: type.lowercase().replace('_', ' ')
         return ActivityEvent(
             id = document.id,
             type = type,
@@ -423,6 +423,7 @@ class FirebaseGroupsRepository @Inject constructor(
             resourceRevision = document.getLong("resourceRevision") ?: 0L,
             occurredAtEpochMillis = (document.get("occurredAt") as? Timestamp)?.toDate()?.time ?: 0L,
             resourceId = document.getString("resourceId"),
+            subject = subject,
         )
     }
 

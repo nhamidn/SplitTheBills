@@ -6,7 +6,6 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import com.dts.splitthebill.domain.model.SignedInUser
 import com.dts.splitthebill.ui.AppScreen
@@ -43,7 +42,7 @@ class ThemeRenderingTest {
         val background = pixels[card.center.x.toInt(), card.top.toInt() + 8].luminance()
         assertTrue("The balance card must retain a dark background", background < 0.1f)
 
-        val amount = compose.onNodeWithText("+$0.00").fetchSemanticsNode().boundsInRoot
+        val amount = compose.onNodeWithTag("balance_total").fetchSemanticsNode().boundsInRoot
         var brightest = 0f
         for (y in amount.top.toInt() until amount.bottom.toInt()) {
             for (x in amount.left.toInt() until amount.right.toInt()) {

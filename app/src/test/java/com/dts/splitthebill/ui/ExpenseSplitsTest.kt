@@ -32,6 +32,18 @@ class ExpenseSplitsTest {
             entryValues = mapOf("a" to "1.00", "b" to "9.00")), group).map { it.amountMinor })
     }
 
+    @Test fun decimalCommasInAmountsAndSplitFieldsPreserveEveryCent() {
+        val editor = ExpenseEditorState(amount = "10,01", selectedParticipantIds = setOf("a", "b"),
+            splitMode = SplitMode.PERCENTAGE, entryValues = mapOf("a" to "33,33", "b" to "66,67"))
+        assertEquals(listOf(3333L, 6667L), splitEntries(editor, group).map { it.value })
+        assertEquals(listOf(334L, 667L), splitAllocations(editor, group).map { it.amountMinor })
+        assertEquals(listOf(100L, 901L), splitAllocations(editor.copy(splitMode = SplitMode.EXACT,
+            entryValues = mapOf("a" to "1,00", "b" to "9,01")), group).map { it.amountMinor })
+        listOf("1,234", "1.234,56", "1,2,3", "1 234,56").forEach { ambiguous ->
+            assertTrue(runCatching { splitAllocations(editor.copy(amount = ambiguous), group) }.isFailure)
+        }
+    }
+
     @Test fun invalidPercentagesWeightsAndTotalsCannotBeSubmitted() {
         val editor = ExpenseEditorState(amount = "10.00", selectedParticipantIds = setOf("a", "b"), splitMode = SplitMode.PERCENTAGE)
         listOf(mapOf("a" to "50", "b" to "49"), mapOf("a" to "50.001", "b" to "49.999"), mapOf("a" to "100", "b" to "0")).forEach {

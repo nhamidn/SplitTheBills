@@ -88,7 +88,7 @@ class SplitTheBillsViewModelTest {
         vm.onAction(SplitTheBillsAction.SubmitExpense)
         advanceUntilIdle()
         assertEquals(null, groups.lastExpense)
-        assertTrue(vm.state.value.error.orEmpty().contains("100%"))
+        assertEquals(UiText(com.dts.splitthebill.R.string.percentages_must_add_up_to_exactly_100), vm.state.value.error)
         vm.onAction(SplitTheBillsAction.ExpenseEntryValueChanged("p2", "66.67"))
         vm.onAction(SplitTheBillsAction.SubmitExpense)
         advanceUntilIdle()
@@ -274,7 +274,7 @@ class SplitTheBillsViewModelTest {
         advanceUntilIdle()
 
         assertEquals(0, groups.createGroupCalls)
-        assertTrue(viewModel.state.value.error.orEmpty().contains("connect", ignoreCase = true))
+        assertEquals(UiText(com.dts.splitthebill.R.string.connect_to_the_internet_before_making_a_shared_change), viewModel.state.value.error)
     }
 
     @Test
@@ -326,7 +326,7 @@ class SplitTheBillsViewModelTest {
         advanceUntilIdle()
 
         assertEquals("Saved locally", restored.state.value.expenseEditor.title)
-        assertEquals("Restored local draft", restored.state.value.draftNotice)
+        assertEquals(UiText(com.dts.splitthebill.R.string.restored_local_draft), restored.state.value.draftNotice)
     }
 
     @Test
@@ -372,7 +372,7 @@ class SplitTheBillsViewModelTest {
         viewModel.onAction(SplitTheBillsAction.ExpenseTitleChanged("My draft"))
         viewModel.onAction(SplitTheBillsAction.SubmitExpense)
         advanceUntilIdle()
-        assertTrue(viewModel.state.value.conflict.orEmpty().contains("server revision 3"))
+        assertEquals(listOf(3L), viewModel.state.value.conflict?.arguments)
         assertEquals("My draft", viewModel.state.value.expenseEditor.title)
 
         groups.detail.value = sampleGroup().copy(expenses = listOf(sampleExpense(3, "Server title")))

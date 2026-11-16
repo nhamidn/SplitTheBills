@@ -1,5 +1,6 @@
 package com.dts.splitthebill.ui
 
+import com.dts.splitthebill.R
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ internal fun CurrencyPickerField(
     onCurrencySelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val strings = uiStrings()
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val currencies = remember(context, locale) {
@@ -72,7 +74,7 @@ internal fun CurrencyPickerField(
     var open by rememberSaveable { mutableStateOf(false) }
     val selectedName = currencies.firstOrNull { it.first == currencyCode }?.second ?: currencyCode
     SelectionField(
-        label = "Currency",
+        label = strings.get(R.string.currency),
         value = "$currencyCode · $selectedName",
         icon = Icons.Outlined.Payments,
         onClick = { open = true },
@@ -86,20 +88,20 @@ internal fun CurrencyPickerField(
         }
         AlertDialog(
             onDismissRequest = { open = false },
-            title = { Text("Choose currency") },
+            title = { Text(strings.get(R.string.choose_currency)) },
             text = {
                 Column(Modifier.fillMaxWidth().heightIn(max = 440.dp)) {
                     OutlinedTextField(
                         value = query,
                         onValueChange = { query = it },
-                        label = { Text("Search by code or name") },
+                        label = { Text(strings.get(R.string.search_by_code_or_name)) },
                         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().testTag("currency_search"),
                     )
                     Spacer(Modifier.height(8.dp))
                     if (filtered.isEmpty()) {
-                        Text("No matching currencies", modifier = Modifier.padding(vertical = 16.dp))
+                        Text(strings.get(R.string.no_matching_currencies), modifier = Modifier.padding(vertical = 16.dp))
                     } else {
                         LazyColumn(Modifier.weight(1f, fill = false).testTag("currency_options")) {
                             items(filtered, key = { it.first }) { (code, name) ->
@@ -107,7 +109,7 @@ internal fun CurrencyPickerField(
                                     headlineContent = { Text(code) },
                                     supportingContent = { Text(name) },
                                     trailingContent = {
-                                        if (code == currencyCode) Icon(Icons.Outlined.Check, contentDescription = "Selected")
+                                        if (code == currencyCode) Icon(Icons.Outlined.Check, contentDescription = strings.get(R.string.currency_selected))
                                     },
                                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                     modifier = Modifier
@@ -122,7 +124,7 @@ internal fun CurrencyPickerField(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { open = false }) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = { open = false }) { Text(strings.get(R.string.cancel)) } },
         )
     }
 }
@@ -134,10 +136,11 @@ internal fun OperationDateField(
     onDateSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val strings = uiStrings()
     val locale = LocalConfiguration.current.locales[0]
     var open by rememberSaveable { mutableStateOf(false) }
     SelectionField(
-        label = "Date",
+        label = strings.get(R.string.date),
         value = OperationDate.display(date, locale),
         icon = Icons.Outlined.CalendarMonth,
         onClick = { open = true },
@@ -164,9 +167,9 @@ internal fun OperationDateField(
                     },
                     enabled = picker.selectedDateMillis != null,
                     modifier = Modifier.testTag("date_confirm"),
-                ) { Text("Use date") }
+                ) { Text(strings.get(R.string.use_date)) }
             },
-            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { open = false }) { Text(strings.get(R.string.cancel)) } },
         ) {
             DatePicker(state = picker, showModeToggle = false)
         }

@@ -18,7 +18,7 @@ internal data class CurrencyBalance(val currency: String, val exponent: Int, val
 internal data class GroupTransaction(val group: GroupDetail, val expense: Expense? = null, val settlement: Settlement? = null) {
     val date: String get() = expense?.date ?: settlement!!.date
     val id: String get() = "${group.id}/${expense?.let { "expense/${it.id}" } ?: "settlement/${settlement!!.id}"}"
-    val title: String get() = expense?.title ?: "${group.person(settlement!!.fromParticipantId)} paid ${group.person(settlement.toParticipantId)}"
+    val title: String get() = expense?.title ?: "${group.person(settlement!!.fromParticipantId)} → ${group.person(settlement.toParticipantId)}"
     fun matches(query: String): Boolean = query.isBlank() ||
         listOf(title, group.name, group.currency, date, expense?.category.orEmpty(), expense?.note.orEmpty(), settlement?.note.orEmpty())
             .any { it.contains(query.trim(), ignoreCase = true) }
@@ -29,7 +29,6 @@ internal data class Reminder(val group: GroupDetail, val payment: RepaymentSugge
 data class ExportDocument(val fileName: String, val contents: String)
 
 internal fun GroupDetail.person(id: String): String = participants.firstOrNull { it.id == id }?.displayName ?: "Former participant"
-internal fun GroupDetail.money(amount: Long): String = "$currency ${MoneyText.formatMinor(amount, CurrencyUnit(currency, currencyExponent))}"
 
 internal fun currencyBalances(groups: Collection<GroupDetail>): List<CurrencyBalance> =
     groups.groupBy { it.currency to it.currencyExponent }.map { (currency, records) ->
@@ -87,12 +86,6 @@ internal fun reminders(groups: Collection<GroupDetail>, simplified: Boolean): Li
     .filter { !it.archived && !it.fromCache && it.currentMemberParticipantId != null }
     .flatMap { group -> runCatching { repaymentPlan(group, simplified) }.getOrDefault(emptyList())
         .filter { it.toParticipantId == group.currentMemberParticipantId }.map { Reminder(group, it) } }
-
-internal fun reminderText(reminder: Reminder): String = with(reminder) {
-    "Hi ${group.person(payment.fromParticipantId)}, a friendly reminder about ${group.name}: " +
-        "you owe ${group.person(payment.toParticipantId)} ${group.money(payment.amountMinor)}. " +
-        "Please check Split the Bills when you have a moment. Thanks!"
-}
 
 /** RFC 4180 quoting plus spreadsheet-formula neutralization for user-provided text. */
 internal fun groupCsv(group: GroupDetail): String = buildString {

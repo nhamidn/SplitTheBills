@@ -8,6 +8,9 @@ For a step-by-step local server and Android virtual-device walkthrough, see
 [Development and emulator testing](docs/development.md). It includes prerequisites,
 server health checks, device routing, manual testing, and troubleshooting.
 
+The app supports English, French, and Spanish. Choose **Profile → Language** to switch, or
+follow the device language. See [App languages](docs/localization.md) for details.
+
 To test against **real Firebase** on the running Android virtual device, use the `staging`
 variant and follow [Real Firebase testing and production deployment](docs/firebase-setup.md).
 That guide covers console setup, App Check, two-account testing, release signing, and the

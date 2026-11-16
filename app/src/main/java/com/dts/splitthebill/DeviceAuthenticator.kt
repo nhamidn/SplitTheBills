@@ -17,7 +17,7 @@ internal class DeviceAuthenticator(private val activity: FragmentActivity) {
     private var success: (() -> Unit)? = null
     private var failure: ((String) -> Unit)? = null
     private val credentials = activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) succeeded() else failed("Authentication cancelled. The app remains locked.")
+        if (result.resultCode == Activity.RESULT_OK) succeeded() else failed(activity.getString(R.string.authentication_cancelled_the_app_remains_locked))
     }
     private val prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), object : BiometricPrompt.AuthenticationCallback() {
         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) = succeeded()
@@ -32,17 +32,17 @@ internal class DeviceAuthenticator(private val activity: FragmentActivity) {
         val allowed = if (Build.VERSION.SDK_INT >= 30) BIOMETRIC_STRONG or DEVICE_CREDENTIAL else BIOMETRIC_WEAK
         if (BiometricManager.from(activity).canAuthenticate(allowed) == BiometricManager.BIOMETRIC_SUCCESS) {
             val info = BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Unlock Split the Bills")
-                .setSubtitle("Confirm your identity on this device")
+                .setTitle(activity.getString(R.string.unlock_split_the_bills))
+                .setSubtitle(activity.getString(R.string.confirm_your_identity_on_this_device))
                 .setAllowedAuthenticators(allowed)
-            if (Build.VERSION.SDK_INT < 30) info.setNegativeButtonText("Cancel")
+            if (Build.VERSION.SDK_INT < 30) info.setNegativeButtonText(activity.getString(R.string.cancel))
             prompt.authenticate(info.build())
         } else if (Build.VERSION.SDK_INT < 30 && activity.getSystemService(KeyguardManager::class.java).isDeviceSecure) {
             val intent = activity.getSystemService(KeyguardManager::class.java)
-                .createConfirmDeviceCredentialIntent("Unlock Split the Bills", "Confirm your device screen lock")
-            if (intent != null) credentials.launch(intent) else failed("Device authentication is unavailable.")
+                .createConfirmDeviceCredentialIntent(activity.getString(R.string.unlock_split_the_bills), activity.getString(R.string.confirm_your_device_screen_lock))
+            if (intent != null) credentials.launch(intent) else failed(activity.getString(R.string.device_authentication_is_unavailable))
         } else {
-            failed("Set up a device screen lock or supported fingerprint in Android settings first.")
+            failed(activity.getString(R.string.set_up_a_device_screen_lock_or_supported_fingerprint_in_android_s))
         }
     }
 

@@ -1,5 +1,11 @@
 package com.dts.splitthebill.ui
 
+import com.dts.splitthebill.R
+import com.dts.splitthebill.domain.CalculationException
+import com.dts.splitthebill.domain.CalculationErrorCode
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.FirebaseTooManyRequestsException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dts.splitthebill.domain.CurrencyUnit
@@ -130,7 +136,7 @@ data class SplitTheBillsUiState(
     val groups: List<GroupSummary> = emptyList(),
     val groupsLoading: Boolean = false,
     val groupDetails: Map<String, GroupDetail> = emptyMap(),
-    val groupErrors: Map<String, String> = emptyMap(),
+    val groupErrors: Map<String, UiText> = emptyMap(),
     val selectedGroup: GroupDetail? = null,
     val selectedGroupId: String? = null,
     val groupLoading: Boolean = false,
@@ -152,13 +158,13 @@ data class SplitTheBillsUiState(
     val profileName: String = "",
     val accountDeletion: AccountDeletionState = AccountDeletionState(),
     val accountDeleted: Boolean = false,
-    val draftNotice: String? = null,
+    val draftNotice: UiText? = null,
     val participantName: String = "",
     val online: Boolean = true,
     val saving: Boolean = false,
-    val message: String? = null,
-    val error: String? = null,
-    val conflict: String? = null,
+    val message: UiText? = null,
+    val error: UiText? = null,
+    val conflict: UiText? = null,
     val conflictTarget: ConflictTarget? = null,
     val conflictActualRevision: Long? = null,
 )
@@ -172,7 +178,7 @@ sealed interface SplitTheBillsAction {
     data object MarkNotificationsRead : SplitTheBillsAction
     data object ExportGroup : SplitTheBillsAction
     data object ExportPickerOpened : SplitTheBillsAction
-    data class ExportFinished(val error: String? = null, val saved: Boolean = false) : SplitTheBillsAction
+    data class ExportFinished(val error: UiText? = null, val saved: Boolean = false) : SplitTheBillsAction
     data class OpenGroupExpense(val groupId: String, val expenseId: String) : SplitTheBillsAction
     data class AddExpenseToGroup(val groupId: String) : SplitTheBillsAction
     data class OpenGroupSettlement(val groupId: String, val settlementId: String) : SplitTheBillsAction
@@ -180,7 +186,7 @@ sealed interface SplitTheBillsAction {
     data object DeleteSelectedSettlement : SplitTheBillsAction
     data class PrepareSettlement(val groupId: String, val from: String, val to: String, val amount: Long) : SplitTheBillsAction
     data class SaveGroupSettings(val name: String, val type: GroupType, val expectedRevision: Long) : SplitTheBillsAction
-    data class ReportError(val message: String) : SplitTheBillsAction
+    data class ReportError(val message: UiText) : SplitTheBillsAction
     data object ArchiveGroup : SplitTheBillsAction
     data class CreateGroupTypeChanged(val value: GroupType) : SplitTheBillsAction
     data class AuthEmailChanged(val value: String) : SplitTheBillsAction
@@ -189,7 +195,7 @@ sealed interface SplitTheBillsAction {
     data object SubmitEmailAuth : SplitTheBillsAction
     data object ResetPassword : SplitTheBillsAction
     data class GoogleTokenReceived(val token: String) : SplitTheBillsAction
-    data class GoogleSignInFailed(val reason: String) : SplitTheBillsAction
+    data class GoogleSignInFailed(val reason: UiText) : SplitTheBillsAction
     data object GoogleUnavailable : SplitTheBillsAction
     data object SignOut : SplitTheBillsAction
     data class ThemeChanged(val value: ThemePreference) : SplitTheBillsAction
@@ -279,7 +285,7 @@ class SplitTheBillsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            userPreferencesRepository.features.catch { error("Could not load preferences. Please restart the app.") }
+            userPreferencesRepository.features.catch { error(uiText(R.string.could_not_load_preferences_please_restart_the_app)) }
                 .collect { preferences -> mutableState.update { it.copy(preferences = preferences, preferencesResolved = true) } }
         }
         viewModelScope.launch {
@@ -311,7 +317,7 @@ class SplitTheBillsViewModel @Inject constructor(
             SplitTheBillsAction.ExportPickerOpened -> mutableState.update { it.copy(exportRequested = false) }
             is SplitTheBillsAction.ExportFinished -> mutableState.update {
                 it.copy(exportDocument = null, exportRequested = false, error = action.error,
-                    message = if (action.saved) "CSV saved" else it.message)
+                    message = if (action.saved) uiText(R.string.csv_saved) else it.message)
             }
             is SplitTheBillsAction.OpenGroupExpense -> openGroup(action.groupId, AppScreen.EXPENSE_DETAIL, action.expenseId)
             is SplitTheBillsAction.OpenGroupSettlement -> {
@@ -319,20 +325,20 @@ class SplitTheBillsViewModel @Inject constructor(
                 mutableState.update { it.copy(settlementDeleteOperationId = newOperationId()) }
             }
             is SplitTheBillsAction.AddExpenseToGroup -> {
-                val group = mutableState.value.groupDetails[action.groupId] ?: return error("This group is still loading. Please try again.")
-                if (group.archived) return error("This group is archived.")
+                val group = mutableState.value.groupDetails[action.groupId] ?: return error(uiText(R.string.this_group_is_still_loading_please_try_again))
+                if (group.archived) return error(uiText(R.string.this_group_is_archived_2))
                 openGroup(group.id)
                 openExpenseEditor(null)
             }
             SplitTheBillsAction.EditSelectedSettlement -> selectedSettlement()?.let { settlement ->
                 val group = mutableState.value.selectedGroup ?: return
-                if (!canChangeRecord(group, settlement.createdByUid)) return error("Only the creator or group owner can edit this repayment.")
+                if (!canChangeRecord(group, settlement.createdByUid)) return error(uiText(R.string.only_the_creator_or_group_owner_can_edit_this_repayment))
                 mutableState.update { it.copy(screen = AppScreen.SETTLEMENT_EDITOR, settlementEditor = settlementEditorFor(settlement, group)) }
             }
             SplitTheBillsAction.DeleteSelectedSettlement -> deleteSelectedSettlement()
             is SplitTheBillsAction.PrepareSettlement -> {
                 val group = mutableState.value.groupDetails[action.groupId] ?: mutableState.value.selectedGroup?.takeIf { it.id == action.groupId } ?: return
-                if (group.archived || group.fromCache || !mutableState.value.online) return error("Connect and refresh this group before recording a repayment.")
+                if (group.archived || group.fromCache || !mutableState.value.online) return error(uiText(R.string.connect_and_refresh_this_group_before_recording_a_repayment))
                 openGroup(group.id, AppScreen.SETTLEMENT_EDITOR)
                 mutableState.update { it.copy(settlementEditor = SettlementEditorState(
                     fromParticipantId = action.from, toParticipantId = action.to,
@@ -350,7 +356,7 @@ class SplitTheBillsViewModel @Inject constructor(
             SplitTheBillsAction.ResetPassword -> resetPassword()
             is SplitTheBillsAction.GoogleTokenReceived -> authenticate { authRepository.signInWithGoogle(action.token) }
             is SplitTheBillsAction.GoogleSignInFailed -> error(action.reason)
-            SplitTheBillsAction.GoogleUnavailable -> message("Configure googleWebClientId to enable Google sign-in.")
+            SplitTheBillsAction.GoogleUnavailable -> message(uiText(R.string.configure_googlewebclientid_to_enable_google_sign_in))
             SplitTheBillsAction.SignOut -> launchSaving(requireOnline = false) { authRepository.signOut() }
             is SplitTheBillsAction.ThemeChanged -> changeTheme(action.value)
             is SplitTheBillsAction.ProfileNameChanged -> mutableState.update { it.copy(profileName = action.value) }
@@ -411,7 +417,7 @@ class SplitTheBillsViewModel @Inject constructor(
             }
             SplitTheBillsAction.EditSelectedExpense -> selectedExpense()?.let { expense ->
                 val group = mutableState.value.selectedGroup ?: return
-                if (!canChangeRecord(group, expense.createdByUid)) return error("Only the creator or group owner can edit this expense.")
+                if (!canChangeRecord(group, expense.createdByUid)) return error(uiText(R.string.only_the_creator_or_group_owner_can_edit_this_expense))
                 openExpenseEditor(expense)
             }
             SplitTheBillsAction.DeleteSelectedExpense -> deleteSelectedExpense()
@@ -489,20 +495,20 @@ class SplitTheBillsViewModel @Inject constructor(
         mutableState.update { it.copy(themePreference = theme) }
         viewModelScope.launch {
             runCatching { userPreferencesRepository.setTheme(theme) }
-                .onFailure { error("Could not save the appearance setting.") }
+                .onFailure { error(uiText(R.string.could_not_save_the_appearance_setting)) }
         }
     }
 
     private fun savePreference(block: suspend () -> Unit) {
-        viewModelScope.launch { runCatching { block() }.onFailure { error("Could not save this setting. Please try again.") } }
+        viewModelScope.launch { runCatching { block() }.onFailure { error(uiText(R.string.could_not_save_this_setting_please_try_again)) } }
     }
 
     private fun saveGroupSettings(name: String, type: GroupType, expectedRevision: Long) {
         val group = mutableState.value.selectedGroup ?: return
-        if (group.ownerUid != mutableState.value.user?.uid) return error("Only the owner can change group settings.")
+        if (group.ownerUid != mutableState.value.user?.uid) return error(uiText(R.string.only_the_owner_can_change_group_settings))
         val trimmed = name.trim()
-        if (trimmed.codePointCount(0, trimmed.length) !in 1..80) return error("Use a group name between 1 and 80 characters.")
-        launchSaving(success = "Group updated", conflictTarget = ConflictTarget.GROUP) {
+        if (trimmed.codePointCount(0, trimmed.length) !in 1..80) return error(uiText(R.string.use_a_group_name_between_1_and_80_characters))
+        launchSaving(success = uiText(R.string.group_updated), conflictTarget = ConflictTarget.GROUP) {
             groupsRepository.renameGroup(group.id, expectedRevision, trimmed, type)
             mutableState.update { it.copy(screen = AppScreen.GROUP_DETAIL) }
         }
@@ -510,8 +516,8 @@ class SplitTheBillsViewModel @Inject constructor(
 
     private fun archiveSelectedGroup() {
         val group = mutableState.value.selectedGroup ?: return
-        if (group.ownerUid != mutableState.value.user?.uid) return error("Only the owner can archive this group.")
-        launchSaving(success = "Group archived", conflictTarget = ConflictTarget.GROUP) {
+        if (group.ownerUid != mutableState.value.user?.uid) return error(uiText(R.string.only_the_owner_can_archive_this_group))
+        launchSaving(success = uiText(R.string.group_archived), conflictTarget = ConflictTarget.GROUP) {
             groupsRepository.archiveGroup(group.id, group.revision)
             mutableState.update { it.copy(screen = AppScreen.GROUPS) }
         }
@@ -520,9 +526,9 @@ class SplitTheBillsViewModel @Inject constructor(
     private fun saveProfile() {
         val displayName = mutableState.value.profileName.trim()
         if (displayName.codePointCount(0, displayName.length) !in 1..80) {
-            return error("Display name must be between 1 and 80 characters.")
+            return error(uiText(R.string.display_name_must_be_between_1_and_80_characters))
         }
-        launchSaving(success = "Profile updated") {
+        launchSaving(success = uiText(R.string.profile_updated)) {
             authRepository.updateDisplayName(displayName)
             mutableState.update { state ->
                 state.copy(user = state.user?.copy(displayName = displayName), profileName = displayName)
@@ -531,7 +537,7 @@ class SplitTheBillsViewModel @Inject constructor(
     }
 
     private fun openAccountDeletion() {
-        if (!mutableState.value.online) return error("Connect to the internet before deleting your account.")
+        if (!mutableState.value.online) return error(uiText(R.string.connect_to_the_internet_before_deleting_your_account))
         val uid = mutableState.value.user?.uid ?: return
         val ownedGroups = mutableState.value.groups.filter { it.role == "OWNER" }
         mutableState.update {
@@ -573,14 +579,14 @@ class SplitTheBillsViewModel @Inject constructor(
         val uid = state.user?.uid ?: return
         val ownedGroups = state.groups.filter { it.role == "OWNER" }
         if (state.accountDeletion.confirmation != "DELETE") {
-            return error("Type DELETE exactly to confirm account deletion.")
+            return error(uiText(R.string.type_delete_exactly_to_confirm_account_deletion))
         }
         val unavailable = ownedGroups.firstOrNull { state.accountDeletion.candidates[it.id].isNullOrEmpty() }
         if (unavailable != null) {
-            return error("Invite another member to ${unavailable.name} before deleting your account.")
+            return error(uiText(R.string.invite_another_member_to_value_before_deleting_your_account, unavailable.name))
         }
         val missing = ownedGroups.firstOrNull { state.accountDeletion.selectedNewOwners[it.id].isNullOrBlank() }
-        if (missing != null) return error("Choose a new owner for ${missing.name}.")
+        if (missing != null) return error(uiText(R.string.choose_a_new_owner_for_value, missing.name))
         val transfers = ownedGroups.map { group ->
             OwnershipTransfer(
                 groupId = group.id,
@@ -684,12 +690,12 @@ class SplitTheBillsViewModel @Inject constructor(
     }
 
     private fun receiveInvitationLink(token: String) {
-        if (token.isBlank()) return error("This invitation link is missing its token.")
+        if (token.isBlank()) return error(uiText(R.string.this_invitation_link_is_missing_its_token))
         mutableState.update {
             it.copy(
                 screen = if (it.user == null) AppScreen.AUTH else AppScreen.INVITATION_REDEMPTION,
                 invitationRedemption = InvitationRedemptionState(value = token, fromLink = true),
-                message = if (it.user == null) "Sign in to accept the invitation." else null,
+                message = if (it.user == null) uiText(R.string.sign_in_to_accept_the_invitation) else null,
             )
         }
     }
@@ -697,8 +703,8 @@ class SplitTheBillsViewModel @Inject constructor(
     private fun redeemInvitation() {
         val form = mutableState.value.invitationRedemption
         val value = form.value.trim()
-        if (value.isEmpty()) return error("Enter an invitation code.")
-        launchSaving(success = "Invitation accepted") {
+        if (value.isEmpty()) return error(uiText(R.string.enter_an_invitation_code))
+        launchSaving(success = uiText(R.string.invitation_accepted)) {
             val result = groupsRepository.redeemInvitation(
                 token = value.takeIf { form.fromLink },
                 code = value.takeUnless { form.fromLink },
@@ -711,7 +717,7 @@ class SplitTheBillsViewModel @Inject constructor(
 
     private fun openGroupMembers() {
         val group = mutableState.value.selectedGroup ?: return
-        if (group.ownerUid != mutableState.value.user?.uid) return error("Only the group owner can manage invitations and links.")
+        if (group.ownerUid != mutableState.value.user?.uid) return error(uiText(R.string.only_the_group_owner_can_manage_invitations_and_links))
         val unlinkedMember = group.members.firstOrNull { it.participantId == null }?.uid.orEmpty()
         val unlinkedParticipant = group.participants.firstOrNull { it.active && it.linkedUid == null }?.id.orEmpty()
         mutableState.update {
@@ -731,8 +737,8 @@ class SplitTheBillsViewModel @Inject constructor(
         val group = mutableState.value.selectedGroup ?: return
         val form = mutableState.value.groupMembers
         val maxUses = form.maxUses.toLongOrNull()
-        if (maxUses == null || maxUses !in 1L..20L) return error("Invitation uses must be between 1 and 20.")
-        launchSaving(success = "Invitation created — share it before leaving this screen") {
+        if (maxUses == null || maxUses !in 1L..20L) return error(uiText(R.string.invitation_uses_must_be_between_1_and_20))
+        launchSaving(success = uiText(R.string.invitation_created_share_it_before_leaving_this_screen)) {
             val invitation = groupsRepository.createInvitation(
                 groupId = group.id,
                 expiresInSeconds = form.expiresInSeconds,
@@ -752,7 +758,7 @@ class SplitTheBillsViewModel @Inject constructor(
         mutableState.update { state ->
             state.copy(groupMembers = state.groupMembers.copy(pendingRevokeInvitationId = invitationId))
         }
-        launchSaving(success = "Invitation revoked", conflictTarget = ConflictTarget.INVITATION) {
+        launchSaving(success = uiText(R.string.invitation_revoked), conflictTarget = ConflictTarget.INVITATION) {
             groupsRepository.revokeInvitation(
                 groupId = group.id,
                 invitationId = invitationId,
@@ -803,9 +809,9 @@ class SplitTheBillsViewModel @Inject constructor(
         val group = mutableState.value.selectedGroup ?: return
         val form = mutableState.value.groupMembers
         if (form.selectedMemberUid.isBlank() || form.selectedParticipantId.isBlank()) {
-            return error("Choose both an unlinked member and an unlinked participant.")
+            return error(uiText(R.string.choose_both_an_unlinked_member_and_an_unlinked_participant))
         }
-        launchSaving(success = "Account linked to participant", conflictTarget = ConflictTarget.GROUP) {
+        launchSaving(success = uiText(R.string.account_linked_to_participant), conflictTarget = ConflictTarget.GROUP) {
             groupsRepository.approveParticipantLink(
                 groupId = group.id,
                 participantId = form.selectedParticipantId,
@@ -828,7 +834,7 @@ class SplitTheBillsViewModel @Inject constructor(
     private fun submitEmailAuth() {
         val form = mutableState.value.authForm
         if (!form.email.contains('@') || form.password.length < 6) {
-            return error("Enter a valid email and a password of at least 6 characters.")
+            return error(uiText(R.string.enter_a_valid_email_and_a_password_of_at_least_6_characters))
         }
         authenticate {
             if (form.mode == AuthMode.SIGN_IN) authRepository.signIn(form.email, form.password)
@@ -838,8 +844,8 @@ class SplitTheBillsViewModel @Inject constructor(
 
     private fun resetPassword() {
         val email = mutableState.value.authForm.email
-        if (!email.contains('@')) return error("Enter your email first.")
-        launchSaving(success = "If the account exists, a reset email has been requested.") {
+        if (!email.contains('@')) return error(uiText(R.string.enter_your_email_first))
+        launchSaving(success = uiText(R.string.if_the_account_exists_a_reset_email_has_been_requested)) {
             authRepository.sendPasswordReset(email)
         }
     }
@@ -848,8 +854,8 @@ class SplitTheBillsViewModel @Inject constructor(
 
     private fun submitGroup() {
         val form = mutableState.value.createGroupForm
-        if (form.name.isBlank() || form.participantName.isBlank()) return error("Group and participant names are required.")
-        launchSaving(success = "Group created") {
+        if (form.name.isBlank() || form.participantName.isBlank()) return error(uiText(R.string.group_and_participant_names_are_required))
+        launchSaving(success = uiText(R.string.group_created)) {
             val result = groupsRepository.createGroup(form.name.trim(), form.currency, form.participantName.trim(), form.type)
             openGroup(result.resourceId)
         }
@@ -857,7 +863,7 @@ class SplitTheBillsViewModel @Inject constructor(
 
     private fun openExpenseEditor(expense: Expense?) {
         val group = mutableState.value.selectedGroup ?: return
-        if (group.archived) return error("This group is archived and no longer accepts financial changes.")
+        if (group.archived) return error(uiText(R.string.this_group_is_archived_and_no_longer_accepts_financial_changes))
         val editor = editorFor(expense, group)
         mutableState.update {
             it.copy(
@@ -911,7 +917,7 @@ class SplitTheBillsViewModel @Inject constructor(
         val editor = mutableState.value.expenseEditor
         val input = runCatching { expenseInput(editor, group) }.getOrElse { return error(readable(it)) }
         launchSaving(
-            success = if (editor.expenseId == null) "Expense saved" else "Expense updated",
+            success = if (editor.expenseId == null) uiText(R.string.expense_saved) else uiText(R.string.expense_updated),
             conflictTarget = ConflictTarget.EXPENSE,
         ) {
             val result = if (editor.expenseId == null) {
@@ -938,13 +944,13 @@ class SplitTheBillsViewModel @Inject constructor(
     }
 
     private fun expenseInput(editor: ExpenseEditorState, group: GroupDetail): ExpenseInput {
-        require(editor.title.isNotBlank()) { "Title is required." }
-        require(editor.payerParticipantId.isNotBlank()) { "Choose who paid." }
-        require(editor.selectedParticipantIds.isNotEmpty()) { "Select at least one participant." }
+        requireUi(editor.title.isNotBlank()) { uiText(R.string.title_is_required) }
+        requireUi(editor.payerParticipantId.isNotBlank()) { uiText(R.string.choose_who_paid) }
+        requireUi(editor.selectedParticipantIds.isNotEmpty()) { uiText(R.string.select_at_least_one_participant) }
         val currency = CurrencyUnit(group.currency, group.currencyExponent)
-        val amount = MoneyText.parseUnsignedMinor(editor.amount.trim(), currency)
-        require(amount > 0L) { "Amount must be greater than zero." }
-        require(group.participants.any { it.id == editor.payerParticipantId && it.active }) { "Choose an active payer." }
+        val amount = MoneyText.parseUnsignedMinor(canonicalDecimal(editor.amount), currency)
+        requireUi(amount > 0L) { uiText(R.string.amount_must_be_greater_than_zero) }
+        requireUi(group.participants.any { it.id == editor.payerParticipantId && it.active }) { uiText(R.string.choose_an_active_payer) }
         val entries = splitEntries(editor, group)
         splitAllocations(editor, group) // Validate the entire split with the same calculation used by the backend.
         return ExpenseInput(
@@ -963,8 +969,8 @@ class SplitTheBillsViewModel @Inject constructor(
     private fun deleteSelectedExpense() {
         val group = mutableState.value.selectedGroup ?: return
         val expense = selectedExpense() ?: return
-        if (!canChangeRecord(group, expense.createdByUid)) return error("Only the creator or group owner can remove this expense.")
-        launchSaving(success = "Expense removed", conflictTarget = ConflictTarget.EXPENSE) {
+        if (!canChangeRecord(group, expense.createdByUid)) return error(uiText(R.string.only_the_creator_or_group_owner_can_remove_this_expense))
+        launchSaving(success = uiText(R.string.expense_removed), conflictTarget = ConflictTarget.EXPENSE) {
             groupsRepository.deleteExpense(group.id, expense.id, expense.revision)
             mutableState.update { it.copy(screen = AppScreen.GROUP_DETAIL, selectedExpenseId = null) }
         }
@@ -973,8 +979,8 @@ class SplitTheBillsViewModel @Inject constructor(
     private fun addParticipant() {
         val group = mutableState.value.selectedGroup ?: return
         val name = mutableState.value.participantName.trim()
-        if (name.isEmpty()) return error("Enter a participant name.")
-        launchSaving(success = "Participant added") {
+        if (name.isEmpty()) return error(uiText(R.string.enter_a_participant_name))
+        launchSaving(success = uiText(R.string.participant_added)) {
             groupsRepository.createParticipant(group.id, name)
             mutableState.update { it.copy(participantName = "") }
         }
@@ -982,7 +988,7 @@ class SplitTheBillsViewModel @Inject constructor(
 
     private fun openSettlement() {
         val group = mutableState.value.selectedGroup ?: return
-        if (group.archived) return error("This group is archived.")
+        if (group.archived) return error(uiText(R.string.this_group_is_archived_2))
         val active = group.participants.filter { it.active }
         mutableState.update {
             it.copy(
@@ -999,14 +1005,14 @@ class SplitTheBillsViewModel @Inject constructor(
         val group = mutableState.value.selectedGroup ?: return
         val form = mutableState.value.settlementEditor
         val amount = runCatching {
-            MoneyText.parseUnsignedMinor(form.amount, CurrencyUnit(group.currency, group.currencyExponent))
+            MoneyText.parseUnsignedMinor(canonicalDecimal(form.amount), CurrencyUnit(group.currency, group.currencyExponent))
         }.getOrElse { return error(readable(it)) }
         if (amount <= 0L || form.fromParticipantId.isBlank() || form.toParticipantId.isBlank() ||
             form.fromParticipantId == form.toParticipantId
-        ) return error("Choose two different participants and a positive amount.")
-        if (group.archived) return error("This group is archived.")
+        ) return error(uiText(R.string.choose_two_different_participants_and_a_positive_amount))
+        if (group.archived) return error(uiText(R.string.this_group_is_archived_2))
         if (form.settlementId != null && selectedSettlement()?.let { !canChangeRecord(group, it.createdByUid) } != false) {
-            return error("This repayment is no longer available for you to edit.")
+            return error(uiText(R.string.this_repayment_is_no_longer_available_for_you_to_edit))
         }
         val input = SettlementInput(
             fromParticipantId = form.fromParticipantId,
@@ -1016,7 +1022,7 @@ class SplitTheBillsViewModel @Inject constructor(
             date = form.date,
             note = form.note.trim().ifEmpty { null },
         )
-        launchSaving(success = if (form.settlementId == null) "Repayment recorded — no money was transferred" else "Repayment updated",
+        launchSaving(success = if (form.settlementId == null) uiText(R.string.repayment_recorded_no_money_was_transferred) else uiText(R.string.repayment_updated),
             conflictTarget = ConflictTarget.SETTLEMENT) {
             val result = if (form.settlementId == null) {
                 groupsRepository.createSettlement(group.id, input, form.operationId)
@@ -1045,8 +1051,8 @@ class SplitTheBillsViewModel @Inject constructor(
         val state = mutableState.value
         val group = state.selectedGroup ?: return
         val settlement = selectedSettlement() ?: return
-        if (!canChangeRecord(group, settlement.createdByUid)) return error("Only the creator or group owner can remove this repayment.")
-        launchSaving(success = "Repayment removed and balances restored", conflictTarget = ConflictTarget.SETTLEMENT) {
+        if (!canChangeRecord(group, settlement.createdByUid)) return error(uiText(R.string.only_the_creator_or_group_owner_can_remove_this_repayment))
+        launchSaving(success = uiText(R.string.repayment_removed_and_balances_restored), conflictTarget = ConflictTarget.SETTLEMENT) {
             groupsRepository.deleteSettlement(group.id, settlement.id, settlement.revision, state.settlementDeleteOperationId)
             mutableState.update { it.copy(screen = AppScreen.GROUP_DETAIL, selectedTab = GroupTab.BALANCES, selectedSettlementId = null) }
         }
@@ -1083,12 +1089,12 @@ class SplitTheBillsViewModel @Inject constructor(
 
     private fun launchSaving(
         requireOnline: Boolean = true,
-        success: String? = null,
+        success: UiText? = null,
         conflictTarget: ConflictTarget? = null,
         block: suspend () -> Unit,
     ) {
         if (mutableState.value.saving) return
-        if (requireOnline && !mutableState.value.online) return error("Connect to the internet before making a shared change.")
+        if (requireOnline && !mutableState.value.online) return error(uiText(R.string.connect_to_the_internet_before_making_a_shared_change))
         mutableState.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             try {
@@ -1098,11 +1104,9 @@ class SplitTheBillsViewModel @Inject constructor(
                 val conflict = if (failure.errorCode == "STALE_REVISION") {
                     val actual = (failure.details["actualRevision"] as? Number)?.toLong()
                     if (conflictTarget == ConflictTarget.EXPENSE || conflictTarget == ConflictTarget.SETTLEMENT) {
-                        "This record changed elsewhere${actual?.let { " (server revision $it)" }.orEmpty()}. " +
-                            "Your changes are still available. Reload the server version or keep editing."
+                        if (actual == null) uiText(R.string.this_record_changed_elsewhere_your_changes_are_still_available_re) else uiText(R.string.this_record_changed_elsewhere_server_revision_value_your_changes, actual)
                     } else {
-                        "This group changed elsewhere${actual?.let { " (server revision $it)" }.orEmpty()}. " +
-                            "Reload the group before trying the management change again."
+                        if (actual == null) uiText(R.string.this_group_changed_elsewhere_reload_the_group_before_trying_the_m) else uiText(R.string.this_group_changed_elsewhere_server_revision_value_reload_the_gro, actual)
                     }
                 } else null
                 mutableState.update {
@@ -1134,10 +1138,9 @@ class SplitTheBillsViewModel @Inject constructor(
             mutableState.update {
                 it.copy(
                     expenseEditor = draft.toEditor(),
-                    draftNotice = "Restored local draft",
+                    draftNotice = uiText(R.string.restored_local_draft),
                     conflict = if (serverRevision != null && draft.expectedRevision != serverRevision) {
-                        "This draft started from revision ${draft.expectedRevision}; the server now has revision " +
-                            "$serverRevision. Reload the server version or keep this draft and review it carefully."
+                        uiText(R.string.this_draft_started_from_revision_value_the_server_now_has_revisio, draft.expectedRevision ?: 0L, serverRevision)
                     } else {
                         null
                     },
@@ -1171,7 +1174,7 @@ class SplitTheBillsViewModel @Inject constructor(
         }
         expenseDraftRepository.save(editor.toDraft(uid, group.id))
         if (mutableState.value.screen == AppScreen.EXPENSE_EDITOR) {
-            mutableState.update { it.copy(draftNotice = "Draft saved on this device") }
+            mutableState.update { it.copy(draftNotice = uiText(R.string.draft_saved_on_this_device)) }
         }
     }
 
@@ -1198,12 +1201,12 @@ class SplitTheBillsViewModel @Inject constructor(
             return
         }
         val expense = group.expenses.firstOrNull { it.id == expenseId }
-            ?: return error("The expense is no longer available on the server.")
+            ?: return error(uiText(R.string.the_expense_is_no_longer_available_on_the_server))
         val uid = mutableState.value.user?.uid ?: return
         draftJob?.cancel()
         viewModelScope.launch { expenseDraftRepository.delete(uid, group.id, expenseId) }
         mutableState.update {
-            it.copy(expenseEditor = editorFor(expense, group), conflict = null, draftNotice = "Loaded server version")
+            it.copy(expenseEditor = editorFor(expense, group), conflict = null, draftNotice = uiText(R.string.loaded_server_version))
         }
     }
 
@@ -1214,12 +1217,12 @@ class SplitTheBillsViewModel @Inject constructor(
             ConflictTarget.SETTLEMENT -> {
                 val group = state.selectedGroup ?: return
                 val settlement = selectedSettlement()
-                    ?: return error("This repayment was removed. Return to the group's payment history.")
+                    ?: return error(uiText(R.string.this_repayment_was_removed_return_to_the_group_s_payment_history))
                 mutableState.update { it.copy(
                     settlementEditor = settlementEditorFor(settlement, group),
                     settlementDeleteOperationId = newOperationId(),
                     conflict = null, conflictTarget = null, conflictActualRevision = null,
-                    message = "Loaded the current repayment. Review it before saving or removing it.",
+                    message = uiText(R.string.loaded_the_current_repayment_review_it_before_saving_or_removing),
                 ) }
             }
             ConflictTarget.INVITATION -> {
@@ -1230,7 +1233,7 @@ class SplitTheBillsViewModel @Inject constructor(
                         conflict = null,
                         conflictTarget = null,
                         conflictActualRevision = null,
-                        message = "Invitation status refreshed. Tap revoke again to confirm.",
+                        message = uiText(R.string.invitation_status_refreshed_tap_revoke_again_to_confirm),
                         groupMembers = it.groupMembers.copy(
                             invitation = it.groupMembers.invitation?.let { invitation ->
                                 if (invitation.id == invitationId) invitation.copy(revision = actualRevision) else invitation
@@ -1270,25 +1273,42 @@ class SplitTheBillsViewModel @Inject constructor(
     private fun updateSettlement(block: SettlementEditorState.() -> SettlementEditorState) = mutableState.update {
         it.copy(settlementEditor = it.settlementEditor.block())
     }
-    private fun message(value: String) = mutableState.update { it.copy(message = value) }
-    private fun error(value: String) = mutableState.update { it.copy(error = value) }
+    private fun message(value: UiText) = mutableState.update { it.copy(message = value) }
+    private fun error(value: UiText) = mutableState.update { it.copy(error = value) }
 }
 
-private fun readable(error: Throwable): String = when (error) {
+private fun readable(error: Throwable): UiText = when (error) {
+    is UiTextException -> error.text
+    is CalculationException -> uiText(when (error.code) {
+        CalculationErrorCode.INVALID_AMOUNT, CalculationErrorCode.INVALID_CURRENCY -> R.string.enter_a_valid_amount_with_the_correct_number_of_decimal_places
+        CalculationErrorCode.OVERFLOW -> R.string.the_amount_is_too_large
+        else -> R.string.check_the_split_the_shares_must_add_up_to_the_total
+    })
+    is FirebaseNetworkException -> uiText(R.string.check_your_connection_and_try_again)
+    is FirebaseTooManyRequestsException -> uiText(R.string.too_many_attempts_please_try_again_later)
+    is FirebaseAuthException -> uiText(when (error.errorCode) {
+        "ERROR_INVALID_EMAIL" -> R.string.enter_a_valid_email_address
+        "ERROR_EMAIL_ALREADY_IN_USE" -> R.string.this_email_address_is_already_in_use
+        "ERROR_WEAK_PASSWORD" -> R.string.choose_a_stronger_password_with_at_least_6_characters
+        "ERROR_USER_DISABLED" -> R.string.this_account_has_been_disabled
+        "ERROR_REQUIRES_RECENT_LOGIN" -> R.string.sign_in_again_before_making_this_change
+        "ERROR_WRONG_PASSWORD", "ERROR_USER_NOT_FOUND", "ERROR_INVALID_CREDENTIAL", "ERROR_INVALID_LOGIN_CREDENTIALS" -> R.string.the_email_or_password_is_incorrect
+        else -> R.string.sign_in_failed_please_try_again
+    })
     is BackendException -> when (error.errorCode) {
-        "GROUP_ARCHIVED" -> "This group is archived and no longer accepts financial changes."
-        "NOT_A_MEMBER" -> "You no longer have access to this group."
-        "OWNER_REQUIRED" -> "Only the group owner can make this change."
-        "RECORD_EDIT_FORBIDDEN" -> "Only the creator or group owner can change this record."
-        "INVITATION_EXPIRED" -> "This invitation expired. Ask the owner for a new one."
-        "INVITATION_REVOKED" -> "This invitation was revoked. Ask the owner for a new one."
-        "INVITATION_EXHAUSTED" -> "This invitation has reached its usage limit."
-        "GROUP_FULL" -> "This group has no available participant place. Ask the owner to add a participant first."
-        "RATE_LIMITED" -> "Too many invitation attempts. Wait ten minutes before trying again."
-        "OPERATION_ID_REUSED" -> "The server already handled an earlier version of this change. Reload before trying again."
-        else -> error.message ?: "The server rejected this change."
+        "GROUP_ARCHIVED" -> uiText(R.string.this_group_is_archived_and_no_longer_accepts_financial_changes)
+        "NOT_A_MEMBER" -> uiText(R.string.you_no_longer_have_access_to_this_group)
+        "OWNER_REQUIRED" -> uiText(R.string.only_the_group_owner_can_make_this_change)
+        "RECORD_EDIT_FORBIDDEN" -> uiText(R.string.only_the_creator_or_group_owner_can_change_this_record)
+        "INVITATION_EXPIRED" -> uiText(R.string.this_invitation_expired_ask_the_owner_for_a_new_one)
+        "INVITATION_REVOKED" -> uiText(R.string.this_invitation_was_revoked_ask_the_owner_for_a_new_one)
+        "INVITATION_EXHAUSTED" -> uiText(R.string.this_invitation_has_reached_its_usage_limit)
+        "GROUP_FULL" -> uiText(R.string.this_group_has_no_available_participant_place_ask_the_owner_to_ad)
+        "RATE_LIMITED" -> uiText(R.string.too_many_invitation_attempts_wait_ten_minutes_before_trying_again)
+        "OPERATION_ID_REUSED" -> uiText(R.string.the_server_already_handled_an_earlier_version_of_this_change_relo)
+        else -> uiText(R.string.the_server_rejected_this_change)
     }
-    else -> error.message ?: "Something went wrong. Try again."
+    else -> uiText(R.string.something_went_wrong_try_again)
 }
 
 private fun formatMinor(amountMinor: Long, exponent: Int): String =

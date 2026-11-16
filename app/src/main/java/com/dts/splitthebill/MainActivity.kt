@@ -5,7 +5,7 @@ import android.app.ActivityManager
 import android.os.Bundle
 import android.os.Process
 import android.widget.Toast
-import androidx.fragment.app.FragmentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
 import android.view.WindowManager
@@ -29,6 +29,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.dts.splitthebill.ui.UiText
+import com.dts.splitthebill.ui.uiText
 import com.dts.splitthebill.ui.SplitTheBillsAction
 import com.dts.splitthebill.ui.SplitTheBillsApp
 import com.dts.splitthebill.ui.SplitTheBillsViewModel
@@ -42,7 +44,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
-class MainActivity : FragmentActivity() {
+class MainActivity : AppCompatActivity() {
     private val pendingInvitationToken = MutableStateFlow<String?>(null)
     private val viewModel: SplitTheBillsViewModel by viewModels()
     private lateinit var deviceAuthenticator: DeviceAuthenticator
@@ -56,7 +58,7 @@ class MainActivity : FragmentActivity() {
         } else {
             val document = viewModel.state.value.exportDocument
             if (document == null) {
-                viewModel.onAction(SplitTheBillsAction.ExportFinished(error = "Export expired. Please try exporting again."))
+                viewModel.onAction(SplitTheBillsAction.ExportFinished(error = uiText(R.string.export_expired_please_try_exporting_again)))
             } else lifecycleScope.launch {
                 try {
                     withContext(Dispatchers.IO) {
@@ -65,9 +67,9 @@ class MainActivity : FragmentActivity() {
                     }
                     viewModel.onAction(SplitTheBillsAction.ExportFinished(saved = true))
                 } catch (_: java.io.IOException) {
-                    viewModel.onAction(SplitTheBillsAction.ExportFinished(error = "Could not save the CSV. Choose a writable location and try again."))
+                    viewModel.onAction(SplitTheBillsAction.ExportFinished(error = uiText(R.string.could_not_save_the_csv_choose_a_writable_location_and_try_again)))
                 } catch (_: SecurityException) {
-                    viewModel.onAction(SplitTheBillsAction.ExportFinished(error = "Access to that document was denied. Try another location."))
+                    viewModel.onAction(SplitTheBillsAction.ExportFinished(error = uiText(R.string.access_to_that_document_was_denied_try_another_location)))
                 }
             }
         }
@@ -120,7 +122,7 @@ class MainActivity : FragmentActivity() {
                     if (state.value.accountDeleted) {
                         Toast.makeText(
                             this@MainActivity,
-                            "Account deleted and local data cleared",
+                            getString(R.string.account_deleted_and_local_data_cleared),
                             Toast.LENGTH_LONG,
                         ).show()
                         delay(800)
@@ -134,13 +136,13 @@ class MainActivity : FragmentActivity() {
                 }
                 when {
                     !state.value.preferencesResolved -> Surface(Modifier.fillMaxSize()) {
-                        Box(contentAlignment = Alignment.Center) { Text(state.value.error ?: "Loading preferences…") }
+                        Box(contentAlignment = Alignment.Center) { Text(state.value.error?.resolve(this@MainActivity) ?: getString(R.string.loading_preferences)) }
                     }
                     locked -> Surface(Modifier.fillMaxSize()) {
                         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Split the Bills is locked", style = MaterialTheme.typography.headlineSmall)
+                            Text(getString(R.string.split_the_bills_is_locked), style = MaterialTheme.typography.headlineSmall)
                             lockError?.let { Text(it, modifier = Modifier.padding(vertical = 16.dp)) }
-                            Button(onClick = { unlock() }) { Text("Unlock") }
+                            Button(onClick = { unlock() }) { Text(getString(R.string.unlock)) }
                         }
                     }
                     else -> SplitTheBillsApp(
@@ -151,7 +153,7 @@ class MainActivity : FragmentActivity() {
                             deviceAuthenticator.authenticate(onSuccess = {
                                 unlocked = true
                                 viewModel.onAction(SplitTheBillsAction.BiometricLockChanged(enabled))
-                            }, onFailure = { viewModel.onAction(SplitTheBillsAction.ReportError(it)) })
+                            }, onFailure = { viewModel.onAction(SplitTheBillsAction.ReportError(UiText.system(it))) })
                         },
                     )
                 }
@@ -197,12 +199,12 @@ class MainActivity : FragmentActivity() {
                 viewModel.onAction(SplitTheBillsAction.GoogleTokenReceived(credential.idToken))
             } catch (_: NoCredentialException) {
                 viewModel.onAction(
-                    SplitTheBillsAction.GoogleSignInFailed("No Google account is available on this device."),
+                    SplitTheBillsAction.GoogleSignInFailed(uiText(R.string.no_saved_google_account_is_available)),
                 )
             } catch (failure: Exception) {
                 viewModel.onAction(
                     SplitTheBillsAction.GoogleSignInFailed(
-                        failure.message ?: "Google sign-in was cancelled.",
+                        uiText(R.string.sign_in_failed_please_try_again),
                     ),
                 )
             }

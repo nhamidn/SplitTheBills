@@ -32,6 +32,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -106,6 +108,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
@@ -144,7 +147,6 @@ import com.dts.splitthebill.domain.model.SplitMode
 import com.dts.splitthebill.domain.repository.ThemePreference
 import com.dts.splitthebill.ui.theme.LocalBalanceCardColors
 import com.dts.splitthebill.ui.theme.SplitTheBillsTheme
-import java.text.DateFormat
 import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -156,10 +158,11 @@ fun SplitTheBillsApp(
     modifier: Modifier = Modifier,
     onBiometricLockChange: ((Boolean) -> Unit)? = null,
 ) {
+    val strings = uiStrings()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(state.message) {
         state.message?.let {
-            snackbar.showSnackbar(it)
+            snackbar.showSnackbar(strings.resolve(it))
             onAction(SplitTheBillsAction.MessageShown)
         }
     }
@@ -186,18 +189,18 @@ fun SplitTheBillsApp(
                     TopAppBar(
                         navigationIcon = {
                             IconButton(enabled = !state.saving, onClick = { onAction(SplitTheBillsAction.Back) }) {
-                                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                                Icon(Icons.Filled.ArrowBack, contentDescription = strings.get(R.string.back))
                             }
                         },
-                        title = { Text(nestedTitle(state), fontWeight = FontWeight.ExtraBold) },
+                        title = { Text(nestedTitle(state, strings), fontWeight = FontWeight.ExtraBold) },
                         actions = {
                             if (state.screen == AppScreen.GROUP_DETAIL) {
                                 IconButton(enabled = !state.saving, onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.GROUP_OPTIONS)) }) {
-                                    Icon(Icons.Outlined.MoreVert, contentDescription = "Group options")
+                                    Icon(Icons.Outlined.MoreVert, contentDescription = strings.get(R.string.group_options))
                                 }
                                 if (state.selectedGroup?.ownerUid == state.user.uid) {
                                     IconButton(enabled = !state.saving, onClick = { onAction(SplitTheBillsAction.OpenGroupMembers) }) {
-                                        Icon(Icons.Outlined.PersonAdd, contentDescription = "Manage people")
+                                        Icon(Icons.Outlined.PersonAdd, contentDescription = strings.get(R.string.manage_people))
                                     }
                                 }
                             }
@@ -247,36 +250,37 @@ fun SplitTheBillsApp(
     AccountDeletionDialog(state, onAction)
 }
 
-private fun nestedTitle(state: SplitTheBillsUiState): String = when (state.screen) {
-    AppScreen.EXPENSE_EDITOR -> if (state.expenseEditor.expenseId == null) "Add expense" else "Edit expense"
-    AppScreen.EXPENSE_DETAIL -> "Expense"
-    AppScreen.SETTLEMENT_EDITOR -> if (state.settlementEditor.settlementId == null) "Settle up" else "Edit repayment"
-    AppScreen.SETTLEMENT_DETAIL -> "Repayment"
-    AppScreen.EXPENSE_GROUP_PICKER -> "Choose a group"
-    AppScreen.CREATE_GROUP -> "Create group"
-    AppScreen.GROUP_MEMBERS -> "Group members"
-    AppScreen.INVITATION_REDEMPTION -> "Join a group"
-    AppScreen.SEARCH -> "Search"
-    AppScreen.NOTIFICATIONS -> "Notifications"
-    AppScreen.REMINDERS -> "Remind"
-    AppScreen.FRIENDS -> "Friends"
-    AppScreen.HELP -> "Help & support"
-    AppScreen.GROUP_OPTIONS -> "Group settings"
-    AppScreen.SETTLEMENT_PICKER -> "Settle up"
+private fun nestedTitle(state: SplitTheBillsUiState, strings: UiStrings): String = when (state.screen) {
+    AppScreen.EXPENSE_EDITOR -> if (state.expenseEditor.expenseId == null) strings.get(R.string.add_expense) else strings.get(R.string.edit_expense)
+    AppScreen.EXPENSE_DETAIL -> strings.get(R.string.expense)
+    AppScreen.SETTLEMENT_EDITOR -> if (state.settlementEditor.settlementId == null) strings.get(R.string.settle_up) else strings.get(R.string.edit_repayment)
+    AppScreen.SETTLEMENT_DETAIL -> strings.get(R.string.repayment)
+    AppScreen.EXPENSE_GROUP_PICKER -> strings.get(R.string.choose_a_group)
+    AppScreen.CREATE_GROUP -> strings.get(R.string.create_group)
+    AppScreen.GROUP_MEMBERS -> strings.get(R.string.group_members)
+    AppScreen.INVITATION_REDEMPTION -> strings.get(R.string.join_a_group)
+    AppScreen.SEARCH -> strings.get(R.string.search)
+    AppScreen.NOTIFICATIONS -> strings.get(R.string.notifications)
+    AppScreen.REMINDERS -> strings.get(R.string.reminders_title)
+    AppScreen.FRIENDS -> strings.get(R.string.friends)
+    AppScreen.HELP -> strings.get(R.string.help_support)
+    AppScreen.GROUP_OPTIONS -> strings.get(R.string.group_settings)
+    AppScreen.SETTLEMENT_PICKER -> strings.get(R.string.settle_up)
     else -> ""
 }
 
 @Composable
 private fun DesignBottomNavigation(selected: MainDestination, enabled: Boolean, onSelected: (MainDestination) -> Unit) {
+    val strings = uiStrings()
     val items: List<Triple<MainDestination, String, ImageVector>> = listOf(
-        Triple(MainDestination.HOME, "Home", Icons.Filled.Home),
-        Triple(MainDestination.GROUPS, "Groups", Icons.Filled.Group),
-        Triple(MainDestination.ACTIVITY, "Activity", Icons.Filled.ReceiptLong),
-        Triple(MainDestination.PROFILE, "Profile", Icons.Filled.Person),
+        Triple(MainDestination.HOME, strings.get(R.string.home), Icons.Filled.Home),
+        Triple(MainDestination.GROUPS, strings.get(R.string.groups), Icons.Filled.Group),
+        Triple(MainDestination.ACTIVITY, strings.get(R.string.activity), Icons.Filled.ReceiptLong),
+        Triple(MainDestination.PROFILE, strings.get(R.string.profile), Icons.Filled.Person),
     )
     Surface(color = MaterialTheme.colorScheme.background.copy(alpha = 0.98f), shadowElevation = 1.dp) {
         Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().height(76.dp).padding(horizontal = 6.dp, vertical = 5.dp),
+            Modifier.fillMaxWidth().navigationBarsPadding().heightIn(min = 76.dp).padding(horizontal = 6.dp, vertical = 5.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             items.forEach { (destination, label, icon) ->
@@ -313,6 +317,7 @@ private fun bottomNavigationItemColors() = NavigationBarItemDefaults.colors(
 
 @Composable
 private fun BrandTitle(state: SplitTheBillsUiState) {
+    val strings = uiStrings()
     val nestedGroupName = state.selectedGroup?.name?.takeIf {
         state.screen !in setOf(AppScreen.GROUPS, AppScreen.SETTINGS)
     }
@@ -328,7 +333,7 @@ private fun BrandTitle(state: SplitTheBillsUiState) {
         }
         Column {
             Text(state.selectedGroup?.name?.takeIf { state.screen != AppScreen.GROUPS } ?: "Split the Bills", fontWeight = FontWeight.Bold)
-            Text("Clear shares, calmer plans", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(strings.get(R.string.clear_shares_calmer_plans), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -340,6 +345,7 @@ private fun AuthScreen(
     onGoogleSignIn: () -> Unit,
     modifier: Modifier,
 ) {
+    val strings = uiStrings()
     Box(
         modifier.fillMaxSize().imePadding().padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
@@ -363,13 +369,13 @@ private fun AuthScreen(
                 }
             }
             Text(
-                if (state.authForm.mode == AuthMode.SIGN_IN) "Welcome back" else "Create your account",
+                if (state.authForm.mode == AuthMode.SIGN_IN) strings.get(R.string.welcome_back) else strings.get(R.string.create_your_account),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
             )
             Text(
-                "Shared expenses, clearly organized.",
+                strings.get(R.string.shared_expenses_clearly_organized),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
@@ -384,18 +390,18 @@ private fun AuthScreen(
                     FilterChip(
                         selected = state.authForm.mode == AuthMode.SIGN_IN,
                         onClick = { onAction(SplitTheBillsAction.AuthModeChanged(AuthMode.SIGN_IN)) },
-                        label = { Text("Sign in") },
+                        label = { Text(strings.get(R.string.sign_in)) },
                     )
                     FilterChip(
                         selected = state.authForm.mode == AuthMode.CREATE_ACCOUNT,
                         onClick = { onAction(SplitTheBillsAction.AuthModeChanged(AuthMode.CREATE_ACCOUNT)) },
-                        label = { Text("Create account") },
+                        label = { Text(strings.get(R.string.create_account)) },
                     )
                 }
                 OutlinedTextField(
                     value = state.authForm.email,
                     onValueChange = { onAction(SplitTheBillsAction.AuthEmailChanged(it)) },
-                    label = { Text("Email") },
+                    label = { Text(strings.get(R.string.email)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("auth_email"),
@@ -403,7 +409,7 @@ private fun AuthScreen(
                 OutlinedTextField(
                     value = state.authForm.password,
                     onValueChange = { onAction(SplitTheBillsAction.AuthPasswordChanged(it)) },
-                    label = { Text("Password") },
+                    label = { Text(strings.get(R.string.password)) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -412,20 +418,20 @@ private fun AuthScreen(
                 Button(
                     onClick = { onAction(SplitTheBillsAction.SubmitEmailAuth) },
                     enabled = !state.saving && state.online,
-                    modifier = Modifier.fillMaxWidth().height(52.dp).testTag("auth_submit"),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("auth_submit"),
                 ) {
-                    Text(if (state.authForm.mode == AuthMode.SIGN_IN) "Sign in" else "Create account")
+                    Text(if (state.authForm.mode == AuthMode.SIGN_IN) strings.get(R.string.sign_in) else strings.get(R.string.create_account))
                 }
                 OutlinedButton(
                     onClick = onGoogleSignIn,
                     enabled = !state.saving && state.online,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) { Text("Continue with Google") }
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                ) { Text(strings.get(R.string.continue_with_google)) }
                 TextButton(
                     onClick = { onAction(SplitTheBillsAction.ResetPassword) },
                     enabled = !state.saving,
                     modifier = Modifier.align(Alignment.CenterHorizontally),
-                ) { Text("Forgot password?") }
+                ) { Text(strings.get(R.string.forgot_password)) }
             }
             if (!state.online) OfflineBanner()
         }
@@ -440,6 +446,7 @@ private fun HomeScreen(
     onAction: (SplitTheBillsAction) -> Unit,
     onSeeAll: () -> Unit,
 ) {
+    val strings = uiStrings()
     val loaded = state.loadedGroups()
     val totals = currencyBalances(loaded)
     var selectedCurrency by rememberSaveable { mutableStateOf(state.preferences.defaultCurrency) }
@@ -448,7 +455,7 @@ private fun HomeScreen(
     val myBalance = total?.net ?: 0L
     val owed = total?.owed ?: 0L
     val owe = total?.owe ?: 0L
-    val name = state.user?.displayName?.substringBefore(' ')?.takeIf(String::isNotBlank) ?: "there"
+    val name = state.user?.displayName?.substringBefore(' ')?.takeIf(String::isNotBlank) ?: strings.get(R.string.you)
     Box(Modifier.fillMaxSize().padding(padding)) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 96.dp),
@@ -458,16 +465,16 @@ private fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Avatar(name = state.user?.displayName ?: "You", size = 40.dp)
+                Avatar(name = state.user?.displayName ?: strings.get(R.string.you), size = 40.dp)
                 Column(Modifier.weight(1f)) {
-                    Text("Good morning", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(strings.get(R.string.good_morning), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Text(name, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                 }
-                IconButton(onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.SEARCH)) }) { Icon(Icons.Outlined.Search, contentDescription = "Search") }
+                IconButton(onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.SEARCH)) }) { Icon(Icons.Outlined.Search, contentDescription = strings.get(R.string.search)) }
                 val unread = notifications(loaded, state.user!!.uid).count { it.event.occurredAtEpochMillis > (state.preferences.notificationReadAt[state.user.uid] ?: 0L) }
                 IconButton(onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.NOTIFICATIONS)) }) {
                     BadgedBox(badge = { if (unread > 0) Badge { Text(if (unread > 99) "99+" else unread.toString()) } }) {
-                        Icon(Icons.Outlined.Notifications, contentDescription = if (unread > 0) "Notifications, $unread unread" else "Notifications")
+                        Icon(Icons.Outlined.Notifications, contentDescription = if (unread > 0) strings.plural(R.plurals.notifications_unread, unread) else strings.get(R.string.notifications))
                     }
                 }
             }
@@ -479,9 +486,9 @@ private fun HomeScreen(
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     totals.forEach { balance -> DesignChip(balance.currency, balance.currency == total?.currency) { selectedCurrency = balance.currency } }
                 }
-                Text("Currencies are shown separately", modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(strings.get(R.string.currencies_are_shown_separately), modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SectionHeader("Active groups", "See all", onSeeAll, Modifier.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 10.dp))
+            SectionHeader(strings.get(R.string.active_groups), strings.get(R.string.see_all), onSeeAll, Modifier.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 10.dp))
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -489,8 +496,8 @@ private fun HomeScreen(
                 if (state.groups.isEmpty() && !state.groupsLoading) {
                     DesignCard(Modifier.width(230.dp).clickable { onSeeAll() }) {
                         GroupTile(null, 44.dp)
-                        Text("Create your first group", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-                        Text("Trips, homes, and shared plans", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        Text(strings.get(R.string.create_your_first_group), fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+                        Text(strings.get(R.string.trips_homes_and_shared_plans), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }
                 state.groups.filterNot { it.archived }.forEach { group ->
@@ -502,16 +509,16 @@ private fun HomeScreen(
                             Avatar(group.name, 24.dp)
                         }
                         Text(group.name, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-                        Text(if (group.archived) "archived" else "active", color = if (group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(if (group.archived) strings.get(R.string.status_archived) else strings.get(R.string.status_active), color = if (group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         Text(group.currency, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = if (group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
                     }
                 }
             }
-            SectionHeader("Recent transactions", "View all", { onAction(SplitTheBillsAction.OpenFeature(AppScreen.SEARCH, "All")) }, Modifier.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 10.dp))
+            SectionHeader(strings.get(R.string.recent_transactions), strings.get(R.string.view_all), { onAction(SplitTheBillsAction.OpenFeature(AppScreen.SEARCH, "All")) }, Modifier.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 10.dp))
             DesignCard(Modifier.padding(horizontal = 16.dp), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
                 val recent = transactions(loaded).take(4)
                 if (recent.isEmpty()) {
-                    Text("Your latest shared expenses will appear here.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(14.dp))
+                    Text(strings.get(R.string.your_latest_shared_expenses_will_appear_here), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(14.dp))
                 } else {
                     recent.forEachIndexed { index, transaction ->
                         if (transaction.expense != null) ExpenseDesignRow(transaction.expense, transaction.group, index > 0) {
@@ -526,7 +533,7 @@ private fun HomeScreen(
                 }
             }
         }
-        DesignFab("Add expense", Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
+        DesignFab(strings.get(R.string.add_expense), Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
             onAction(SplitTheBillsAction.OpenFeature(AppScreen.EXPENSE_GROUP_PICKER))
         }
     }
@@ -534,6 +541,7 @@ private fun HomeScreen(
 
 @Composable
 private fun BalanceHero(balance: Long, owed: Long, owe: Long, group: GroupDetail?, onRemind: () -> Unit, onSettle: () -> Unit) {
+    val strings = uiStrings()
     val colors = LocalBalanceCardColors.current
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).testTag("balance_card"),
@@ -542,16 +550,16 @@ private fun BalanceHero(balance: Long, owed: Long, owe: Long, group: GroupDetail
         contentColor = colors.content,
     ) {
         Column(Modifier.padding(22.dp)) {
-            Text("Total balance", color = colors.supporting, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Text(formatMinorSigned(balance, group), color = if (balance >= 0) colors.content else colors.negative, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.2).sp)
-            Text(if (owed == 0L && owe == 0L) "You're all settled up" else if (balance >= 0) "Overall, friends owe you" else "Overall, you owe friends", color = colors.supporting, fontSize = 13.sp)
+            Text(strings.get(R.string.total_balance), color = colors.supporting, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(strings.signedMoney(balance, group), modifier = Modifier.testTag("balance_total"), color = if (balance >= 0) colors.content else colors.negative, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.2).sp)
+            Text(if (owed == 0L && owe == 0L) strings.get(R.string.you_re_all_settled_up) else if (balance >= 0) strings.get(R.string.overall_friends_owe_you) else strings.get(R.string.overall_you_owe_friends), color = colors.supporting, fontSize = 13.sp)
             val totalShares = owed.toDouble() + owe.toDouble()
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(8.dp)
                     .clip(CircleShape)
                     .background(colors.content.copy(alpha = 0.12f))
                     .semantics {
-                        contentDescription = "You are owed ${formatMinor(owed, group)}; you owe ${formatMinor(owe, group)}"
+                        contentDescription = strings.get(R.string.you_are_owed_value_you_owe_value, strings.money(owed, group), strings.money(owe, group))
                     },
             ) {
                 if (owed > 0L) {
@@ -562,15 +570,15 @@ private fun BalanceHero(balance: Long, owed: Long, owe: Long, group: GroupDetail
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                DarkMetric("You are owed", owed, colors.positive, group, Modifier.weight(1f))
-                DarkMetric("You owe", owe, colors.negative, group, Modifier.weight(1f))
+                DarkMetric(strings.get(R.string.you_are_owed), owed, colors.positive, group, Modifier.weight(1f))
+                DarkMetric(strings.get(R.string.you_owe), owe, colors.negative, group, Modifier.weight(1f))
             }
-            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onSettle, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = colors.content, contentColor = colors.container), shape = CircleShape) {
-                    Icon(Icons.Outlined.Handshake, contentDescription = null, Modifier.size(19.dp)); Spacer(Modifier.width(7.dp)); Text("Settle up")
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = onSettle, modifier = Modifier.weight(1f).fillMaxHeight(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), colors = ButtonDefaults.buttonColors(containerColor = colors.content, contentColor = colors.container), shape = CircleShape) {
+                    Icon(Icons.Outlined.Handshake, contentDescription = null, Modifier.size(19.dp)); Spacer(Modifier.width(7.dp)); Text(strings.get(R.string.settle_up))
                 }
-                OutlinedButton(onClick = onRemind, modifier = Modifier.weight(1f), border = BorderStroke(1.dp, colors.supporting), colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.content), shape = CircleShape) {
-                    Icon(Icons.Outlined.Notifications, contentDescription = null, Modifier.size(18.dp)); Spacer(Modifier.width(7.dp)); Text("Remind")
+                OutlinedButton(onClick = onRemind, modifier = Modifier.weight(1f).fillMaxHeight(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), border = BorderStroke(1.dp, colors.supporting), colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.content), shape = CircleShape) {
+                    Icon(Icons.Outlined.Notifications, contentDescription = null, Modifier.size(18.dp)); Spacer(Modifier.width(7.dp)); Text(strings.get(R.string.remind))
                 }
             }
         }
@@ -579,6 +587,7 @@ private fun BalanceHero(balance: Long, owed: Long, owe: Long, group: GroupDetail
 
 @Composable
 private fun DarkMetric(label: String, amount: Long, color: Color, group: GroupDetail?, modifier: Modifier = Modifier) {
+    val strings = uiStrings()
     val colors = LocalBalanceCardColors.current
     Surface(modifier, color = colors.content.copy(alpha = 0.07f), contentColor = colors.content, shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(13.dp)) {
@@ -586,55 +595,56 @@ private fun DarkMetric(label: String, amount: Long, color: Color, group: GroupDe
                 Box(Modifier.size(6.dp).background(color, CircleShape))
                 Text(label, color = colors.supporting, fontSize = 12.sp)
             }
-            Text(formatMinor(amount, group), color = color, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
+            Text(strings.money(amount, group), color = color, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
 
 @Composable
 private fun GroupsScreen(state: SplitTheBillsUiState, padding: PaddingValues, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
     var selectedFilter by rememberSaveable { mutableStateOf("All") }
     var menu by remember { mutableStateOf(false) }
     var newestFirst by rememberSaveable { mutableStateOf(false) }
-    val filters = listOf("All", "Active") + GroupType.entries.map { it.label } + "Archived"
+    val filters = listOf("All", "Active") + GroupType.entries.map { it.name } + "Archived"
     val groups = state.groups.filter { group ->
         when (selectedFilter) {
             "All" -> true
             "Active" -> !group.archived
             "Archived" -> group.archived
-            else -> group.type.label == selectedFilter
+            else -> group.type.name == selectedFilter
         }
     }.let { values -> if (newestFirst) values.sortedByDescending { state.groupDetails[it.id]?.activity?.maxOfOrNull { event -> event.occurredAtEpochMillis } ?: 0L } else values.sortedBy { it.name.lowercase() } }
     Box(Modifier.fillMaxSize().padding(padding)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 96.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Groups", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                IconButton(onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.SEARCH, "Groups")) }) { Icon(Icons.Outlined.Search, contentDescription = "Search groups") }
+                Text(strings.get(R.string.groups), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                IconButton(onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.SEARCH, "Groups")) }) { Icon(Icons.Outlined.Search, contentDescription = strings.get(R.string.search_groups)) }
                 Box {
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = "More") }
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = strings.get(R.string.more)) }
                     DropdownMenu(menu, { menu = false }) {
-                        DropdownMenuItem(text = { Text(if (newestFirst) "Sort by name" else "Sort by latest activity") }, onClick = { newestFirst = !newestFirst; menu = false })
-                        DropdownMenuItem(text = { Text("Create a group") }, onClick = { menu = false; onAction(SplitTheBillsAction.OpenCreateGroup) })
-                        DropdownMenuItem(text = { Text("Join with a code") }, onClick = { menu = false; onAction(SplitTheBillsAction.OpenInvitationRedemption) })
+                        DropdownMenuItem(text = { Text(if (newestFirst) strings.get(R.string.sort_by_name) else strings.get(R.string.sort_by_latest_activity)) }, onClick = { newestFirst = !newestFirst; menu = false })
+                        DropdownMenuItem(text = { Text(strings.get(R.string.create_a_group)) }, onClick = { menu = false; onAction(SplitTheBillsAction.OpenCreateGroup) })
+                        DropdownMenuItem(text = { Text(strings.get(R.string.join_with_a_code)) }, onClick = { menu = false; onAction(SplitTheBillsAction.OpenInvitationRedemption) })
                     }
                 }
             }
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                filters.forEach { filter -> DesignChip(if (filter == "All") "All · ${state.groups.size}" else filter, selectedFilter == filter) { selectedFilter = filter } }
+                filters.forEach { filter -> DesignChip(if (filter == "All") strings.get(R.string.all_value, state.groups.size) else strings.filter(filter), selectedFilter == filter) { selectedFilter = filter } }
             }
             GroupLoadStatus(state, onAction)
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when {
                     state.groupsLoading -> LoadingBlock()
-                    state.groups.isEmpty() -> EmptyCard("Nothing split yet", "Create a group for a trip, home, or shared plan.")
-                    groups.isEmpty() -> EmptyCard("No matching groups", "Choose another filter or create a group of this type.")
+                    state.groups.isEmpty() -> EmptyCard(strings.get(R.string.nothing_split_yet), strings.get(R.string.create_a_group_for_a_trip_home_or_shared_plan))
+                    groups.isEmpty() -> EmptyCard(strings.get(R.string.no_matching_groups), strings.get(R.string.choose_another_filter_or_create_a_group_of_this_type))
                     else -> groups.forEach { group -> GroupCard(group, onAction, state.groupDetails[group.id]) }
                 }
-                OutlinedButton(onClick = { onAction(SplitTheBillsAction.OpenCreateGroup) }, modifier = Modifier.fillMaxWidth()) { Text("Create a group") }
-                TextButton(onClick = { onAction(SplitTheBillsAction.OpenInvitationRedemption) }, modifier = Modifier.fillMaxWidth().testTag("open_invitation")) { Text("Have an invitation? Join a group") }
+                OutlinedButton(onClick = { onAction(SplitTheBillsAction.OpenCreateGroup) }, modifier = Modifier.fillMaxWidth()) { Text(strings.get(R.string.create_a_group)) }
+                TextButton(onClick = { onAction(SplitTheBillsAction.OpenInvitationRedemption) }, modifier = Modifier.fillMaxWidth().testTag("open_invitation")) { Text(strings.get(R.string.have_an_invitation_join_a_group)) }
             }
         }
-        DesignFab("Add expense", Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
+        DesignFab(strings.get(R.string.add_expense), Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
             onAction(SplitTheBillsAction.OpenFeature(AppScreen.EXPENSE_GROUP_PICKER))
         }
     }
@@ -642,28 +652,30 @@ private fun GroupsScreen(state: SplitTheBillsUiState, padding: PaddingValues, on
 
 @Composable
 private fun GroupCard(group: GroupSummary, onAction: (SplitTheBillsAction) -> Unit, detail: GroupDetail? = null) {
+    val strings = uiStrings()
     DesignCard(Modifier.fillMaxWidth().clickable { onAction(SplitTheBillsAction.OpenGroup(group.id)) }, contentPadding = PaddingValues(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             GroupTile(group, 52.dp)
             Column(Modifier.weight(1f)) {
                 Text(group.name, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-                Text("${group.currency} · ${group.type.label} · ${group.role.lowercase().replaceFirstChar(Char::uppercase)}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Text("${group.currency} · ${strings.groupType(group.type)} · ${strings.role(group.role)}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
-            Text(if (group.archived) "archived" else "active", color = if (group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+            Text(if (group.archived) strings.get(R.string.status_archived) else strings.get(R.string.status_active), color = if (group.archived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary, fontSize = 11.sp)
         }
-        if (detail == null) Text("Loading balance…", modifier = Modifier.padding(top = 12.dp))
+        if (detail == null) Text(strings.get(R.string.loading_balance), modifier = Modifier.padding(top = 12.dp))
         else {
             val balance = detail.balances.firstOrNull { it.participantId == detail.currentMemberParticipantId }?.amountMinor ?: 0L
-            Text(if (detail.currentMemberParticipantId == null) "Participant link pending" else if (balance == 0L) "Settled" else if (balance > 0) "You are owed ${detail.money(balance)}" else "You owe ${detail.money(-balance)}",
+            Text(if (detail.currentMemberParticipantId == null) strings.get(R.string.participant_link_pending) else if (balance == 0L) strings.get(R.string.settled) else if (balance > 0) strings.get(R.string.you_are_owed_value, strings.money(balance, detail)) else strings.get(R.string.you_owe_value, strings.money(-balance, detail)),
                 color = if (balance > 0) MaterialTheme.colorScheme.primary else if (balance < 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 12.dp), fontWeight = FontWeight.SemiBold)
-            Text("${detail.participants.count { it.active }} people · ${detail.expenses.size} expenses", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text("${strings.plural(R.plurals.people_count, detail.participants.count { it.active })} · ${strings.plural(R.plurals.expenses_count, detail.expenses.size)}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
     }
 }
 
 @Composable
 private fun GlobalActivityScreen(state: SplitTheBillsUiState, padding: PaddingValues, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
     var filter by rememberSaveable { mutableStateOf("All") }
     var period by rememberSaveable { mutableStateOf("All time") }
     var menu by remember { mutableStateOf(false) }
@@ -686,23 +698,23 @@ private fun GlobalActivityScreen(state: SplitTheBillsUiState, padding: PaddingVa
     }
     Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 96.dp)) {
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Activity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            IconButton(onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.SEARCH, "All")) }) { Icon(Icons.Outlined.Search, contentDescription = "Search activity") }
+            Text(strings.get(R.string.activity), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            IconButton(onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.SEARCH, "All")) }) { Icon(Icons.Outlined.Search, contentDescription = strings.get(R.string.search_activity)) }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = "Filter activity") }
+                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = strings.get(R.string.filter_activity)) }
                 DropdownMenu(menu, { menu = false }) {
-                    listOf("All time", "This month").forEach { value -> DropdownMenuItem(text = { Text(value) }, onClick = { period = value; menu = false }) }
+                    listOf("All time", "This month").forEach { value -> DropdownMenuItem(text = { Text(strings.filter(value)) }, onClick = { period = value; menu = false }) }
                 }
             }
         }
         DesignCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), contentPadding = PaddingValues(18.dp)) {
-            Text("Your share this month", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(currencyGroup?.money(weekly.sum()) ?: "$currency 0", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
+            Text(strings.get(R.string.your_share_this_month), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(currencyGroup?.let { strings.money(weekly.sum(), it) } ?: "$currency 0", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
                 weekly.forEachIndexed { index, amount ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.semantics { contentDescription = "Week ${index + 1}: ${currencyGroup?.money(amount) ?: "$currency 0"}" }) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.semantics { contentDescription = strings.get(R.string.week_value_value, index + 1, currencyGroup?.let { strings.money(amount, it) } ?: "$currency 0") }) {
                         Surface(Modifier.width(20.dp).height((4 + 44 * amount.toDouble() / maxOf(1L, weekly.maxOrNull() ?: 1L)).toFloat().dp), color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(4.dp)) {}
-                        Text("W${index + 1}", fontSize = 10.sp)
+                        Text(strings.get(R.string.wvalue, index + 1), fontSize = 10.sp)
                     }
                 }
             }
@@ -711,14 +723,14 @@ private fun GlobalActivityScreen(state: SplitTheBillsUiState, padding: PaddingVa
             }
         }
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("All", "Expenses", "Payments").forEach { item -> DesignChip(item, filter == item) { filter = item } }
+            listOf("All", "Expenses", "Payments").forEach { item -> DesignChip(strings.filter(item), filter == item) { filter = item } }
         }
         GroupLoadStatus(state, onAction)
-        Text(period, modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(strings.filter(period), modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (state.groupsLoading) LoadingBlock()
             records.forEach { TransactionCard(it, onAction) }
-            if (records.isEmpty()) EmptyCard("Quiet for now", "No transactions match these filters.")
+            if (records.isEmpty()) EmptyCard(strings.get(R.string.quiet_for_now), strings.get(R.string.no_transactions_match_these_filters))
         }
     }
 }
@@ -769,7 +781,7 @@ internal fun Avatar(name: String, size: androidx.compose.ui.unit.Dp, modifier: M
 @Composable
 private fun DesignChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.height(36.dp).clickable(onClick = onClick),
+        modifier = Modifier.heightIn(min = 36.dp).clickable(onClick = onClick),
         color = if (selected) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
         contentColor = if (selected) MaterialTheme.colorScheme.inverseOnSurface else MaterialTheme.colorScheme.onSurface,
         shape = CircleShape,
@@ -781,7 +793,7 @@ private fun DesignChip(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun DesignFab(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = modifier.height(56.dp),
+        modifier = modifier.heightIn(min = 56.dp),
         shape = RoundedCornerShape(18.dp),
         contentPadding = PaddingValues(horizontal = 18.dp),
         elevation = ButtonDefaults.buttonElevation(
@@ -799,21 +811,22 @@ private fun DesignFab(label: String, modifier: Modifier = Modifier, onClick: () 
 @Composable
 private fun SectionHeader(title: String, action: String?, onAction: () -> Unit, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text(title, modifier = Modifier.weight(1f), fontSize = 17.sp, fontWeight = FontWeight.Bold)
         action?.let { TextButton(onClick = onAction) { Text(it, fontSize = 13.sp, fontWeight = FontWeight.Bold) } }
     }
 }
 
 @Composable
 private fun ExpenseDesignRow(expense: Expense, group: GroupDetail, divider: Boolean, onClick: () -> Unit) {
+    val strings = uiStrings()
     val myId = group.currentMemberParticipantId
     val paid = expense.contributions.any { it.participantId == myId }
     TransactionDesignRow(
         icon = categoryIcon(expense.category),
         title = expense.title,
-        subtitle = "${nameOf(group, expense.contributions.firstOrNull()?.participantId.orEmpty())} paid ${format(expense.amountMinor, group)} · ${expense.date}",
-        amountLabel = if (paid) "you lent" else "you owe",
-        amount = format(expense.allocations.firstOrNull { it.participantId == myId }?.amountMinor ?: 0L, group),
+        subtitle = strings.get(R.string.value_paid_value_value, strings.person(group, expense.contributions.firstOrNull()?.participantId.orEmpty()), strings.money(expense.amountMinor, group), strings.date(expense.date)),
+        amountLabel = if (paid) strings.get(R.string.you_lent) else strings.get(R.string.you_owe_short),
+        amount = strings.money(expense.allocations.firstOrNull { it.participantId == myId }?.amountMinor ?: 0L, group),
         amountColor = if (paid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
         divider = divider,
         onClick = onClick,
@@ -822,20 +835,21 @@ private fun ExpenseDesignRow(expense: Expense, group: GroupDetail, divider: Bool
 
 @Composable
 private fun SettlementDesignRow(settlement: Settlement, group: GroupDetail, divider: Boolean, onClick: () -> Unit) {
+    val strings = uiStrings()
     val myId = group.currentMemberParticipantId
     val received = myId == settlement.toParticipantId
     val sent = myId == settlement.fromParticipantId
     TransactionDesignRow(
         icon = Icons.Outlined.Handshake,
-        title = "${nameOf(group, settlement.fromParticipantId)} paid ${nameOf(group, settlement.toParticipantId)}",
-        subtitle = "${group.name} · ${settlement.date}",
-        amountLabel = when { received -> "you received"; sent -> "you paid"; else -> "repayment" },
-        amount = format(settlement.amountMinor, group),
+        title = strings.get(R.string.value_paid_value, strings.person(group, settlement.fromParticipantId), strings.person(group, settlement.toParticipantId)),
+        subtitle = "${group.name} · ${strings.date(settlement.date)}",
+        amountLabel = when { received -> strings.get(R.string.you_received); sent -> strings.get(R.string.you_paid); else -> strings.get(R.string.repayment_short) },
+        amount = strings.money(settlement.amountMinor, group),
         amountColor = when { received -> MaterialTheme.colorScheme.primary; sent -> MaterialTheme.colorScheme.secondary; else -> MaterialTheme.colorScheme.onSurfaceVariant },
         divider = divider,
         onClick = onClick,
     ) {
-        ParticipantSummary(listOf(settlement.fromParticipantId, settlement.toParticipantId).distinct().map { nameOf(group, it) },
+        ParticipantSummary(listOf(settlement.fromParticipantId, settlement.toParticipantId).distinct().map { strings.person(group, it) },
             Modifier.padding(top = 8.dp).testTag("settlement_participants_${settlement.id}"))
     }
 }
@@ -879,20 +893,22 @@ private fun TransactionDesignRow(
 
 @Composable
 internal fun ExpenseParticipants(expense: Expense, group: GroupDetail, modifier: Modifier = Modifier) {
+    val strings = uiStrings()
     val participantIds = (expense.contributions.map { it.participantId } +
         expense.allocations.map { it.participantId }).distinct()
-    ParticipantSummary(participantIds.map { nameOf(group, it) }, modifier.testTag("expense_participants_${expense.id}"))
+    ParticipantSummary(participantIds.map { strings.person(group, it) }, modifier.testTag("expense_participants_${expense.id}"))
 }
 
 @Composable
 private fun ParticipantSummary(names: List<String>, modifier: Modifier = Modifier) {
+    val strings = uiStrings()
     if (names.isEmpty()) return
     val shown = names.take(4)
     val remaining = names.size - shown.size
     val circles = shown.size + if (remaining > 0) 1 else 0
     Row(
         modifier = modifier.clearAndSetSemantics {
-            contentDescription = "Participants: ${names.joinToString()}"
+            contentDescription = strings.get(R.string.participants_value, names.joinToString())
         },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -920,7 +936,7 @@ private fun ParticipantSummary(names: List<String>, modifier: Modifier = Modifie
             }
         }
         Text(
-            if (names.size == 1) "1 person" else "${names.size} people",
+            strings.plural(R.plurals.people_count, names.size),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -934,12 +950,6 @@ private fun categoryIcon(category: String): ImageVector = when (category.upperca
     else -> Icons.Outlined.ReceiptLong
 }
 
-private fun formatMinor(amountMinor: Long, group: GroupDetail?): String =
-    if (group != null) format(amountMinor, group)
-    else "$" + MoneyText.formatMinor(amountMinor, CurrencyUnit("USD", 2))
-
-private fun formatMinorSigned(amountMinor: Long, group: GroupDetail?): String =
-    (if (amountMinor >= 0) "+" else "−") + formatMinor(kotlin.math.abs(amountMinor), group)
 
 @Composable
 private fun InvitationRedemptionScreen(
@@ -947,20 +957,21 @@ private fun InvitationRedemptionScreen(
     padding: PaddingValues,
     onAction: (SplitTheBillsAction) -> Unit,
 ) {
+    val strings = uiStrings()
     val form = state.invitationRedemption
     FormPage(
         padding,
-        "Join a shared space",
-        "Invitation access and participant identity are separate. The owner must approve any participant link.",
+        strings.get(R.string.join_a_shared_space),
+        strings.get(R.string.invitation_access_and_participant_identity_are_separate_the_owner),
     ) {
         if (form.fromLink) {
-            EmptyCard("Invitation link ready", "Sign in and confirm below. The raw token stays hidden.")
+            EmptyCard(strings.get(R.string.invitation_link_ready), strings.get(R.string.sign_in_and_confirm_below_the_raw_token_stays_hidden))
         } else {
             OutlinedTextField(
                 value = form.value,
                 onValueChange = { onAction(SplitTheBillsAction.InvitationValueChanged(it)) },
-                label = { Text("Invitation code") },
-                supportingText = { Text("Example: ABCDE-23456") },
+                label = { Text(strings.get(R.string.invitation_code)) },
+                supportingText = { Text(strings.get(R.string.example_abcde_23456)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("invitation_code"),
             )
@@ -968,20 +979,21 @@ private fun InvitationRedemptionScreen(
         Button(
             onClick = { onAction(SplitTheBillsAction.SubmitInvitation) },
             enabled = state.online && !state.saving && form.value.isNotBlank(),
-            modifier = Modifier.fillMaxWidth().height(52.dp).testTag("invitation_submit"),
-        ) { Text(if (state.saving) "Checking with server…" else "Accept invitation") }
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("invitation_submit"),
+        ) { Text(if (state.saving) strings.get(R.string.checking_with_server) else strings.get(R.string.accept_invitation)) }
     }
 }
 
 @Composable
 private fun CreateGroupScreen(state: SplitTheBillsUiState, padding: PaddingValues, onAction: (SplitTheBillsAction) -> Unit) {
-    FormPage(padding, "Create a shared space", "One currency keeps every balance understandable.") {
-        FormSection("Group details", "You can add more people after creating the group.") {
+    val strings = uiStrings()
+    FormPage(padding, strings.get(R.string.create_a_shared_space), strings.get(R.string.one_currency_keeps_every_balance_understandable)) {
+        FormSection(strings.get(R.string.group_details), strings.get(R.string.you_can_add_more_people_after_creating_the_group)) {
             OutlinedTextField(
                 state.createGroupForm.name,
                 { onAction(SplitTheBillsAction.CreateGroupNameChanged(it)) },
-                label = { Text("Group name") },
-                placeholder = { Text("Weekend away") },
+                label = { Text(strings.get(R.string.group_name)) },
+                placeholder = { Text(strings.get(R.string.weekend_away)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("group_name"),
             )
@@ -991,15 +1003,15 @@ private fun CreateGroupScreen(state: SplitTheBillsUiState, padding: PaddingValue
                 onCurrencySelected = { onAction(SplitTheBillsAction.CreateGroupCurrencyChanged(it)) },
             )
             Text(
-                "This currency applies to every expense and repayment in the group.",
+                strings.get(R.string.this_currency_applies_to_every_expense_and_repayment_in_the_group),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedTextField(
                 state.createGroupForm.participantName,
                 { onAction(SplitTheBillsAction.CreateGroupParticipantChanged(it)) },
-                label = { Text("Your participant name") },
-                supportingText = { Text("Names never determine account identity.") },
+                label = { Text(strings.get(R.string.your_participant_name)) },
+                supportingText = { Text(strings.get(R.string.names_never_determine_account_identity)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("participant_name"),
             )
@@ -1007,22 +1019,23 @@ private fun CreateGroupScreen(state: SplitTheBillsUiState, padding: PaddingValue
         Button(
             onClick = { onAction(SplitTheBillsAction.SubmitGroup) },
             enabled = !state.saving && state.online,
-            modifier = Modifier.fillMaxWidth().height(52.dp).testTag("group_submit"),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("group_submit"),
         ) {
-            Text(if (state.saving) "Creating…" else "Create group")
+            Text(if (state.saving) strings.get(R.string.creating) else strings.get(R.string.create_group))
         }
     }
 }
 
 @Composable
 private fun GroupScreen(state: SplitTheBillsUiState, padding: PaddingValues, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
     val group = state.selectedGroup
     if (state.groupLoading || group == null) {
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (state.groupLoading) CircularProgressIndicator()
-                else Text("This group is unavailable.")
-                TextButton(onClick = { onAction(SplitTheBillsAction.Retry) }) { Text("Retry loading") }
+                else Text(strings.get(R.string.this_group_is_unavailable))
+                TextButton(onClick = { onAction(SplitTheBillsAction.Retry) }) { Text(strings.get(R.string.retry_loading)) }
             }
         }
         return
@@ -1031,23 +1044,23 @@ private fun GroupScreen(state: SplitTheBillsUiState, padding: PaddingValues, onA
     val myBalance = group.balances.firstOrNull { it.participantId == group.currentMemberParticipantId }?.amountMinor ?: 0L
     Box(Modifier.fillMaxSize().padding(padding)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp).padding(bottom = 94.dp)) {
-            if (group.fromCache) Text("Cached copy · Balances will refresh when connected.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (group.fromCache) Text(strings.get(R.string.cached_copy_balances_will_refresh_when_connected), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 GroupTile(GroupSummary(group.id, group.name, group.currency, "", group.currentMemberParticipantId, group.revision, group.archived, group.type), 64.dp)
                 Column(Modifier.weight(1f)) {
                     Text(group.name, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp)
-                    Text("${group.currency} · ${group.participants.count(Participant::active)} members", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("${group.currency} · ${strings.plural(R.plurals.members_count, group.participants.count(Participant::active))}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             DesignCard(Modifier.fillMaxWidth().padding(top = 14.dp), contentPadding = PaddingValues(18.dp)) {
                 Row(Modifier.fillMaxWidth()) {
-                    Column(Modifier.weight(1f)) { Text("Group spend", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp); Text(format(totalSpend, group), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold) }
-                    Surface(Modifier.width(1.dp).height(48.dp), color = MaterialTheme.colorScheme.outlineVariant) {}
-                    Column(Modifier.weight(1f).padding(start = 14.dp)) { Text("Your balance", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp); Text(formatMinorSigned(myBalance, group), color = if (myBalance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold) }
+                    Column(Modifier.weight(1f)) { Text(strings.get(R.string.group_spend), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp); Text(strings.money(totalSpend, group), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold) }
+                    Surface(Modifier.width(1.dp).heightIn(min = 48.dp), color = MaterialTheme.colorScheme.outlineVariant) {}
+                    Column(Modifier.weight(1f).padding(start = 14.dp)) { Text(strings.get(R.string.your_balance), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp); Text(strings.signedMoney(myBalance, group), color = if (myBalance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold) }
                 }
                 Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { onAction(SplitTheBillsAction.SelectGroupTab(GroupTab.BALANCES)) }, modifier = Modifier.weight(1f).height(44.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface), shape = CircleShape) { Icon(Icons.Outlined.Handshake, null, Modifier.size(19.dp)); Spacer(Modifier.width(6.dp)); Text("Settle up") }
-                    Button(onClick = { onAction(SplitTheBillsAction.ExportGroup) }, modifier = Modifier.weight(1f).height(44.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface), shape = CircleShape) { Text("Export") }
+                    Button(onClick = { onAction(SplitTheBillsAction.SelectGroupTab(GroupTab.BALANCES)) }, modifier = Modifier.weight(1f).heightIn(min = 44.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface), shape = CircleShape) { Icon(Icons.Outlined.Handshake, null, Modifier.size(19.dp)); Spacer(Modifier.width(6.dp)); Text(strings.get(R.string.settle_up)) }
+                    Button(onClick = { onAction(SplitTheBillsAction.ExportGroup) }, modifier = Modifier.weight(1f).heightIn(min = 44.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface), shape = CircleShape) { Text(strings.get(R.string.export)) }
                 }
             }
             DesignSegmented(
@@ -1063,14 +1076,15 @@ private fun GroupScreen(state: SplitTheBillsUiState, padding: PaddingValues, onA
             }
         }
         if (state.selectedTab == GroupTab.EXPENSES && !group.archived) {
-            DesignFab("Add expense", Modifier.align(Alignment.BottomEnd).padding(16.dp)) { onAction(SplitTheBillsAction.OpenNewExpense) }
+            DesignFab(strings.get(R.string.add_expense), Modifier.align(Alignment.BottomEnd).padding(16.dp)) { onAction(SplitTheBillsAction.OpenNewExpense) }
         }
     }
 }
 
 @Composable
 private fun DesignSegmented(selected: GroupTab, modifier: Modifier = Modifier, onSelected: (GroupTab) -> Unit) {
-    val tabs = listOf(GroupTab.EXPENSES to "Expenses", GroupTab.BALANCES to "Balances", GroupTab.MEMBERS to "Members", GroupTab.ACTIVITY to "History")
+    val strings = uiStrings()
+    val tabs = listOf(GroupTab.EXPENSES to strings.get(R.string.expenses), GroupTab.BALANCES to strings.get(R.string.balances), GroupTab.MEMBERS to strings.get(R.string.members), GroupTab.ACTIVITY to strings.get(R.string.history))
     Surface(modifier, color = MaterialTheme.colorScheme.surfaceContainer, shape = CircleShape) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(4.dp)) {
             tabs.forEach { (tab, label) ->
@@ -1087,14 +1101,15 @@ private fun DesignSegmented(selected: GroupTab, modifier: Modifier = Modifier, o
 
 @Composable
 private fun GroupMembersSummary(group: GroupDetail) {
+    val strings = uiStrings()
     DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
         group.participants.filter(Participant::active).forEachIndexed { index, participant ->
             if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
             val balance = group.balances.firstOrNull { it.participantId == participant.id }?.amountMinor ?: 0L
             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Avatar(participant.displayName, 38.dp)
-                Column(Modifier.weight(1f)) { Text(if (participant.id == group.currentMemberParticipantId) "You" else participant.displayName, fontWeight = FontWeight.Bold); Text(if (participant.linkedUid == null) "Invitation pending" else "Group member", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
-                Column(horizontalAlignment = Alignment.End) { Text(formatMinorSigned(balance, group), color = if (balance > 0) MaterialTheme.colorScheme.primary else if (balance < 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold); Text(if (balance > 0) "gets back" else if (balance < 0) "owes" else "even", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp) }
+                Column(Modifier.weight(1f)) { Text(if (participant.id == group.currentMemberParticipantId) strings.get(R.string.you) else participant.displayName, fontWeight = FontWeight.Bold); Text(if (participant.linkedUid == null) strings.get(R.string.invitation_pending) else strings.get(R.string.group_member), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
+                Column(horizontalAlignment = Alignment.End) { Text(strings.signedMoney(balance, group), color = if (balance > 0) MaterialTheme.colorScheme.primary else if (balance < 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold); Text(if (balance > 0) strings.get(R.string.gets_back) else if (balance < 0) strings.get(R.string.owes) else strings.get(R.string.even), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp) }
             }
         }
     }
@@ -1102,6 +1117,7 @@ private fun GroupMembersSummary(group: GroupDetail) {
 
 @Composable
 private fun ParticipantAdder(state: SplitTheBillsUiState, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
     // Outlined fields reserve half a label line above the visible border.
     val labelInset = with(LocalDensity.current) {
         MaterialTheme.typography.bodySmall.lineHeight.toDp() / 2
@@ -1114,7 +1130,7 @@ private fun ParticipantAdder(state: SplitTheBillsUiState, onAction: (SplitTheBil
         OutlinedTextField(
             value = state.participantName,
             onValueChange = { onAction(SplitTheBillsAction.ParticipantNameChanged(it)) },
-            label = { Text("Add named participant") },
+            label = { Text(strings.get(R.string.add_named_participant)) },
             singleLine = true,
             shape = MaterialTheme.shapes.small,
             modifier = Modifier.weight(1f).testTag("group_participant_name"),
@@ -1128,7 +1144,7 @@ private fun ParticipantAdder(state: SplitTheBillsUiState, onAction: (SplitTheBil
                 .fillMaxHeight()
                 .widthIn(min = 80.dp)
                 .testTag("group_participant_submit"),
-        ) { Text("Add") }
+        ) { Text(strings.get(R.string.add)) }
     }
 }
 
@@ -1138,6 +1154,7 @@ private fun GroupMembersScreen(
     padding: PaddingValues,
     onAction: (SplitTheBillsAction) -> Unit,
 ) {
+    val strings = uiStrings()
     val group = state.selectedGroup ?: return
     val form = state.groupMembers
     val context = LocalContext.current
@@ -1150,10 +1167,10 @@ private fun GroupMembersScreen(
     )
     FormPage(
         padding,
-        "People & access",
-        "Manage participants, invitations, and account links for this group.",
+        strings.get(R.string.people_access),
+        strings.get(R.string.manage_participants_invitations_and_account_links_for_this_group),
     ) {
-        FormSection("Participants", "People included in expenses and balances.") {
+        FormSection(strings.get(R.string.participants), strings.get(R.string.people_included_in_expenses_and_balances)) {
             ParticipantAdder(state, onAction)
             group.participants.forEachIndexed { index, participant ->
                 if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -1170,7 +1187,7 @@ private fun GroupMembersScreen(
                     Column(Modifier.weight(1f)) {
                         Text(participant.displayName, fontWeight = FontWeight.SemiBold)
                         Text(
-                            participant.linkedUid?.let { "Account linked · ${shortUid(it)}" } ?: "Participant only",
+                            participant.linkedUid?.let { strings.get(R.string.account_linked_value, shortUid(it)) } ?: strings.get(R.string.participant_only),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1181,16 +1198,16 @@ private fun GroupMembersScreen(
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         FormSection(
-            "Create an invitation",
+            strings.get(R.string.create_an_invitation),
             if (availableAccountPlaces > 0) {
-                "$availableAccountPlaces of $activeParticipantCount account places available. Share the link or its fallback code."
+                strings.get(R.string.value_of_value_account_places_available_share_the_link_or_its_fal, availableAccountPlaces, activeParticipantCount)
             } else {
-                "The group is full. Add a participant before inviting another account."
+                strings.get(R.string.the_group_is_full_add_a_participant_before_inviting_another_accou)
             },
         ) {
-            Text("Expires after", style = MaterialTheme.typography.labelLarge)
+            Text(strings.get(R.string.expires_after), style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(3600L to "1 hour", 86400L to "1 day", 604800L to "7 days", 2592000L to "30 days")
+                listOf(3600L to strings.get(R.string.text_1_hour), 86400L to strings.get(R.string.text_1_day), 604800L to strings.get(R.string.text_7_days), 2592000L to strings.get(R.string.text_30_days))
                     .forEach { (seconds, label) ->
                         FilterChip(
                             selected = form.expiresInSeconds == seconds,
@@ -1202,8 +1219,8 @@ private fun GroupMembersScreen(
             OutlinedTextField(
                 value = form.maxUses,
                 onValueChange = { onAction(SplitTheBillsAction.InvitationMaxUsesChanged(it.filter(Char::isDigit))) },
-                label = { Text("Maximum uses") },
-                supportingText = { Text("Invitation use limit: 1–20. Group capacity still applies.") },
+                label = { Text(strings.get(R.string.maximum_uses)) },
+                supportingText = { Text(strings.get(R.string.invitation_use_limit_1_20_group_capacity_still_applies)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -1211,8 +1228,8 @@ private fun GroupMembersScreen(
             Button(
                 onClick = { onAction(SplitTheBillsAction.CreateInvitation) },
                 enabled = state.online && !state.saving && form.invitation == null && availableAccountPlaces > 0,
-                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("create_invitation"),
-            ) { Text("Create invitation") }
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("create_invitation"),
+            ) { Text(strings.get(R.string.create_invitation)) }
         }
 
         form.invitation?.let { invitation ->
@@ -1222,9 +1239,9 @@ private fun GroupMembersScreen(
                 shape = MaterialTheme.shapes.large,
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Invitation ready", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(strings.get(R.string.invitation_ready), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     if (invitation.secretAlreadyIssued || invitation.token.isBlank()) {
-                        Text("This secret was already displayed. Revoke it and create another invitation if it was not shared.")
+                        Text(strings.get(R.string.this_secret_was_already_displayed_revoke_it_and_create_another_in))
                     } else {
                         Text(
                             invitation.code,
@@ -1232,7 +1249,7 @@ private fun GroupMembersScreen(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
-                        Text("Code fallback", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text(strings.get(R.string.code_fallback), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         val link = invitationLink(invitation.token)
                         Button(
                             onClick = {
@@ -1240,33 +1257,33 @@ private fun GroupMembersScreen(
                                     .setType("text/plain")
                                     .putExtra(
                                         Intent.EXTRA_TEXT,
-                                        "Join ${group.name} in Split the Bills:\n$link\nCode: ${invitation.code}",
+                                        strings.get(R.string.join_value_in_split_the_bills_nvalue_ncode_value, group.name, link, invitation.code),
                                     )
-                                context.startActivity(Intent.createChooser(share, "Share invitation"))
+                                context.startActivity(Intent.createChooser(share, strings.get(R.string.share_invitation)))
                             },
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Share invitation") }
+                        ) { Text(strings.get(R.string.share_invitation)) }
                     }
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Expires ${invitation.expiresAt}", style = MaterialTheme.typography.bodySmall)
+                        Text(strings.get(R.string.expires_value, strings.date(invitation.expiresAt)), style = MaterialTheme.typography.bodySmall)
                         TextButton(
                             onClick = { onAction(SplitTheBillsAction.RevokeInvitation(invitation.id, invitation.revision)) },
                             enabled = state.online && !state.saving,
-                        ) { Text("Revoke") }
+                        ) { Text(strings.get(R.string.revoke)) }
                     }
                 }
             }
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        FormSection("Issued invitations", "Only metadata remains after an invitation secret is shown.") {
+        FormSection(strings.get(R.string.issued_invitations), strings.get(R.string.only_metadata_remains_after_an_invitation_secret_is_shown)) {
             when {
                 form.invitationsLoading -> CircularProgressIndicator(Modifier.size(28.dp))
-                form.invitations.isEmpty() -> Text("No invitations created yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                form.invitations.isEmpty() -> Text(strings.get(R.string.no_invitations_created_yet), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 else -> form.invitations.forEachIndexed { index, invitation ->
                     if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     val revocable = invitation.revokedAt == null && invitation.useCount < invitation.maxUses
@@ -1278,14 +1295,14 @@ private fun GroupMembersScreen(
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 when {
-                                    invitation.revokedAt != null -> "Revoked invitation"
-                                    invitation.useCount >= invitation.maxUses -> "Usage limit reached"
-                                    else -> "Active invitation"
+                                    invitation.revokedAt != null -> strings.get(R.string.revoked_invitation)
+                                    invitation.useCount >= invitation.maxUses -> strings.get(R.string.usage_limit_reached)
+                                    else -> strings.get(R.string.active_invitation)
                                 },
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                "${invitation.useCount}/${invitation.maxUses} uses · expires ${invitation.expiresAt}",
+                                strings.get(R.string.value_value_uses_expires_value, invitation.useCount, invitation.maxUses, strings.date(invitation.expiresAt)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -1294,7 +1311,7 @@ private fun GroupMembersScreen(
                             TextButton(
                                 onClick = { onAction(SplitTheBillsAction.RevokeInvitation(invitation.id, invitation.revision)) },
                                 enabled = state.online && !state.saving,
-                            ) { Text("Revoke") }
+                            ) { Text(strings.get(R.string.revoke)) }
                         }
                     }
                 }
@@ -1302,12 +1319,12 @@ private fun GroupMembersScreen(
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        FormSection("Link an account", "After someone joins, confirm which participant represents them.") {
+        FormSection(strings.get(R.string.link_an_account), strings.get(R.string.after_someone_joins_confirm_which_participant_represents_them)) {
             when {
-                unlinkedMembers.isEmpty() -> Text("No member is waiting to be linked.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                unlinkedParticipants.isEmpty() -> Text("No unlinked participant is available.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                unlinkedMembers.isEmpty() -> Text(strings.get(R.string.no_member_is_waiting_to_be_linked), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                unlinkedParticipants.isEmpty() -> Text(strings.get(R.string.no_unlinked_participant_is_available), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 else -> {
-                    Text("Member account", style = MaterialTheme.typography.labelLarge)
+                    Text(strings.get(R.string.member_account), style = MaterialTheme.typography.labelLarge)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         unlinkedMembers.forEach { member ->
                             FilterChip(
@@ -1317,7 +1334,7 @@ private fun GroupMembersScreen(
                             )
                         }
                     }
-                    Text("Participant", style = MaterialTheme.typography.labelLarge)
+                    Text(strings.get(R.string.participant), style = MaterialTheme.typography.labelLarge)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         unlinkedParticipants.forEach { participant ->
                             FilterChip(
@@ -1328,7 +1345,7 @@ private fun GroupMembersScreen(
                         }
                     }
                     Text(
-                        "Confirm the match with the invited person. Names are never used to infer identity.",
+                        strings.get(R.string.confirm_the_match_with_the_invited_person_names_are_never_used_to),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1337,7 +1354,7 @@ private fun GroupMembersScreen(
                         enabled = state.online && !state.saving && form.selectedMemberUid.isNotBlank() &&
                             form.selectedParticipantId.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Approve account link") }
+                    ) { Text(strings.get(R.string.approve_account_link)) }
                 }
             }
         }
@@ -1346,8 +1363,9 @@ private fun GroupMembersScreen(
 
 @Composable
 private fun ExpenseList(group: GroupDetail, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
     if (group.expenses.isEmpty() && group.settlements.isEmpty()) {
-        EmptyCard("No activity yet", "Add an expense when everyone can see who paid and how it is split.")
+        EmptyCard(strings.get(R.string.no_activity_yet), strings.get(R.string.add_an_expense_when_everyone_can_see_who_paid_and_how_it_is_split))
     }
     if (group.expenses.isNotEmpty()) {
         DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
@@ -1360,6 +1378,7 @@ private fun ExpenseList(group: GroupDetail, onAction: (SplitTheBillsAction) -> U
 
 @Composable
 private fun BalanceList(group: GroupDetail, onAction: (SplitTheBillsAction) -> Unit, simplified: Boolean, online: Boolean) {
+    val strings = uiStrings()
     val suggestions = remember(group, simplified) {
         runCatching { repaymentPlan(group, simplified) }
     }
@@ -1367,68 +1386,69 @@ private fun BalanceList(group: GroupDetail, onAction: (SplitTheBillsAction) -> U
     Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(20.dp)) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("✦", color = MaterialTheme.colorScheme.primary, fontSize = 22.sp)
-            Text(if (simplified) "Balances are combined to reduce transfers." else "Repayments keep the counterparties from your expenses.", color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(if (simplified) strings.get(R.string.balances_are_combined_to_reduce_transfers) else strings.get(R.string.repayments_keep_the_counterparties_from_your_expenses), color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
     Spacer(Modifier.height(12.dp))
     when {
         suggestions.isFailure -> Text(
-            "Suggestions are unavailable because the current balances are inconsistent.",
+            strings.get(R.string.suggestions_are_unavailable_because_the_current_balances_are_inco),
             color = MaterialTheme.colorScheme.error,
         )
-        suggestions.getOrThrow().isEmpty() -> EmptyCard("Everyone is settled", "No repayment is currently needed.")
+        suggestions.getOrThrow().isEmpty() -> EmptyCard(strings.get(R.string.everyone_is_settled), strings.get(R.string.no_repayment_is_currently_needed))
         else -> DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
-            Text("WHO OWES WHOM", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp))
+            Text(strings.get(R.string.who_owes_whom), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp))
             suggestions.getOrThrow().forEachIndexed { index, suggestion ->
                 if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Avatar(nameOf(group, suggestion.fromParticipantId), 36.dp)
+                    Avatar(strings.person(group, suggestion.fromParticipantId), 36.dp)
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(format(suggestion.amountMinor, group), color = if (suggestion.toParticipantId == group.currentMemberParticipantId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                        Text(strings.money(suggestion.amountMinor, group), color = if (suggestion.toParticipantId == group.currentMemberParticipantId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
                         Text("- - - - - - →", color = if (suggestion.toParticipantId == group.currentMemberParticipantId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                     }
-                    Avatar(nameOf(group, suggestion.toParticipantId), 36.dp)
+                    Avatar(strings.person(group, suggestion.toParticipantId), 36.dp)
                     Surface(modifier = Modifier.clickable(enabled = online && !group.fromCache && !group.archived) {
                         onAction(SplitTheBillsAction.PrepareSettlement(group.id, suggestion.fromParticipantId, suggestion.toParticipantId, suggestion.amountMinor))
-                    }, color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) { Text(if (suggestion.toParticipantId == group.currentMemberParticipantId) "Record" else "Settle", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)) }
+                    }, color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) { Text(if (suggestion.toParticipantId == group.currentMemberParticipantId) strings.get(R.string.record) else strings.get(R.string.settle), color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)) }
                 }
             }
         }
     }
     if (group.settlements.isNotEmpty()) {
-        SectionHeader("Payment history", null, {}, Modifier.padding(top = 20.dp, bottom = 8.dp))
+        SectionHeader(strings.get(R.string.payment_history), null, {}, Modifier.padding(top = 20.dp, bottom = 8.dp))
         DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
             group.settlements.forEachIndexed { index, settlement ->
                 if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 Row(Modifier.fillMaxWidth().clickable {
                     onAction(SplitTheBillsAction.OpenGroupSettlement(group.id, settlement.id))
                 }.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Avatar(nameOf(group, settlement.fromParticipantId), 38.dp)
-                    Column(Modifier.weight(1f)) { Text("${nameOf(group, settlement.fromParticipantId)} paid ${nameOf(group, settlement.toParticipantId)}", fontWeight = FontWeight.Bold, fontSize = 13.sp); Text(settlement.date, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp) }
-                    Text(format(settlement.amountMinor, group), fontWeight = FontWeight.ExtraBold)
+                    Avatar(strings.person(group, settlement.fromParticipantId), 38.dp)
+                    Column(Modifier.weight(1f)) { Text(strings.get(R.string.value_paid_value, strings.person(group, settlement.fromParticipantId), strings.person(group, settlement.toParticipantId)), fontWeight = FontWeight.Bold, fontSize = 13.sp); Text(strings.date(settlement.date), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp) }
+                    Text(strings.money(settlement.amountMinor, group), fontWeight = FontWeight.ExtraBold)
                 }
             }
         }
     }
     OutlinedButton(onClick = { onAction(SplitTheBillsAction.OpenSettlement) },
         enabled = online && !group.fromCache && !group.archived && group.participants.count { it.active } >= 2,
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("Record a repayment") }
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text(strings.get(R.string.record_a_repayment)) }
 }
 
 @Composable
 private fun ActivityList(group: GroupDetail) {
-    if (group.activity.isEmpty()) EmptyCard("Quiet for now", "Server-confirmed changes will appear here.")
+    val strings = uiStrings()
+    if (group.activity.isEmpty()) EmptyCard(strings.get(R.string.quiet_for_now), strings.get(R.string.server_confirmed_changes_will_appear_here))
     group.activity.forEach { event ->
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(modifier = Modifier.padding(top = 5.dp).size(10.dp), color = MaterialTheme.colorScheme.primary, shape = CircleShape) {}
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(event.type.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase), fontWeight = FontWeight.SemiBold)
-                Text(event.summary, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(strings.activityTitle(event), fontWeight = FontWeight.SemiBold)
+                Text(strings.activitySummary(event, group), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     buildString {
-                        append(formatActivityTime(event.occurredAtEpochMillis))
-                        event.actorUid?.let { append(" · account ${shortUid(it)}") }
-                        if (event.resourceRevision > 0) append(" · revision ${event.resourceRevision}")
+                        append(strings.activityTime(event.occurredAtEpochMillis))
+                        event.actorUid?.let { append(strings.get(R.string.account_value, shortUid(it))) }
+                        if (event.resourceRevision > 0) append(strings.get(R.string.revision_value, event.resourceRevision))
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1441,16 +1461,19 @@ private fun ActivityList(group: GroupDetail) {
 
 @Composable
 private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingValues, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
+    val density = LocalDensity.current
+    var footerHeight by remember { mutableStateOf(88.dp) }
     val group = state.selectedGroup ?: return
     val editor = state.expenseEditor
     val selectedCount = editor.selectedParticipantIds.size.coerceAtLeast(1)
     val amountMinor = runCatching {
-        MoneyText.parseUnsignedMinor(editor.amount, CurrencyUnit(group.currency, group.currencyExponent))
+        MoneyText.parseUnsignedMinor(canonicalDecimal(editor.amount), CurrencyUnit(group.currency, group.currencyExponent))
     }.getOrDefault(0L)
     val preview = remember(editor, group) { runCatching { splitAllocations(editor, group) } }
     val allocations = preview.getOrNull()?.associate { it.participantId to it.amountMinor }.orEmpty()
     Box(Modifier.fillMaxSize().padding(padding).imePadding()) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 88.dp)) {
+        Column(Modifier.fillMaxSize().padding(bottom = footerHeight).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
             Surface(Modifier.align(Alignment.CenterHorizontally), color = MaterialTheme.colorScheme.surface, shape = CircleShape, shadowElevation = 0.5.dp) {
                 Row(Modifier.padding(horizontal = 7.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     GroupTile(GroupSummary(group.id, group.name, group.currency, "", group.currentMemberParticipantId, group.revision, group.archived, group.type), 30.dp)
@@ -1461,7 +1484,7 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
             OutlinedTextField(
                 value = editor.amount,
                 onValueChange = { onAction(SplitTheBillsAction.ExpenseAmountChanged(it)) },
-                prefix = { Text(currencySymbol(group.currency), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 30.sp, fontWeight = FontWeight.Bold) },
+                prefix = { Text(strings.currencySymbol(group.currency), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 30.sp, fontWeight = FontWeight.Bold) },
                 textStyle = MaterialTheme.typography.headlineLarge.copy(fontSize = 48.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
@@ -1471,7 +1494,7 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
             OutlinedTextField(
                 value = editor.title,
                 onValueChange = { onAction(SplitTheBillsAction.ExpenseTitleChanged(it)) },
-                placeholder = { Text("What was it for?") },
+                placeholder = { Text(strings.get(R.string.what_was_it_for)) },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.Bold),
                 singleLine = true,
                 shape = RoundedCornerShape(18.dp),
@@ -1481,14 +1504,14 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
                 listOf("FOOD", "GROCERIES", "TRANSPORT", "LODGING", "ENTERTAINMENT", "OTHER").forEach { category ->
                     val selected = editor.category == category
                     Surface(
-                        modifier = Modifier.width(76.dp).height(72.dp).clickable { onAction(SplitTheBillsAction.ExpenseCategoryChanged(category)) },
+                        modifier = Modifier.widthIn(min = 76.dp).heightIn(min = 72.dp).clickable { onAction(SplitTheBillsAction.ExpenseCategoryChanged(category)) },
                         color = if (selected) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.surface,
                         contentColor = if (selected) MaterialTheme.colorScheme.inverseOnSurface else MaterialTheme.colorScheme.onSurface,
                         shape = RoundedCornerShape(20.dp),
                         shadowElevation = if (selected) 0.dp else 0.5.dp,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Icon(categoryIcon(category), null, Modifier.size(22.dp)); Text(category.lowercase().replaceFirstChar(Char::uppercase), fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            Icon(categoryIcon(category), null, Modifier.size(22.dp)); Text(strings.category(category), fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center)
                         }
                     }
                 }
@@ -1500,23 +1523,24 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
                     modifier = Modifier.testTag("expense_date"),
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                Text("Paid by", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(start = 12.dp, top = 10.dp))
+                Text(strings.get(R.string.paid_by), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(start = 12.dp, top = 10.dp))
                 ParticipantChips(group.participants, editor.payerParticipantId) { onAction(SplitTheBillsAction.ExpensePayerChanged(it)) }
             }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 18.dp), verticalAlignment = Alignment.Bottom) {
-                Text("Split", fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("${editor.selectedParticipantIds.size} of ${group.participants.count(Participant::active)} people", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            FlowRow(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 18.dp).testTag("expense_split_section"),
+                horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(strings.get(R.string.split), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(strings.get(R.string.value_of_value_people, editor.selectedParticipantIds.size, group.participants.count(Participant::active)), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
             ExpenseSplitSegmented(editor.splitMode) { onAction(SplitTheBillsAction.ExpenseModeChanged(it)) }
             Surface(Modifier.fillMaxWidth().height(9.dp).padding(horizontal = 2.dp, vertical = 1.dp), color = MaterialTheme.colorScheme.surfaceContainer, shape = CircleShape) {
                 Row { repeat(selectedCount) { index -> Surface(Modifier.weight(1f).fillMaxHeight(), color = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.outline)[index % 4]) {} } }
             }
             Text(when {
-                preview.isSuccess -> "Shares total ${formatMinor(allocations.values.sum(), group)}"
-                editor.splitMode == SplitMode.PERCENTAGE -> "Enter percentages that add up to 100%. Up to two decimal places."
-                editor.splitMode == SplitMode.WEIGHTED -> "Enter positive whole-number shares. Amounts are divided in that ratio."
-                editor.splitMode == SplitMode.EXACT -> "Enter amounts that add up to the expense total."
-                else -> "Enter an amount to preview each person's share."
+                preview.isSuccess -> strings.get(R.string.shares_total_value, strings.money(allocations.values.sum(), group))
+                editor.splitMode == SplitMode.PERCENTAGE -> strings.get(R.string.enter_percentages_that_add_up_to_100_up_to_two_decimal_places)
+                editor.splitMode == SplitMode.WEIGHTED -> strings.get(R.string.enter_positive_whole_number_shares_amounts_are_divided_in_that_ra)
+                editor.splitMode == SplitMode.EXACT -> strings.get(R.string.enter_amounts_that_add_up_to_the_expense_total)
+                else -> strings.get(R.string.enter_an_amount_to_preview_each_person_s_share)
             }, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 2.dp, vertical = 5.dp))
             DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
                 group.participants.filter(Participant::active).forEachIndexed { index, participant ->
@@ -1525,9 +1549,9 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
                     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = selected, onCheckedChange = { onAction(SplitTheBillsAction.ExpenseParticipantToggled(participant.id)) })
                         Avatar(participant.displayName, 34.dp)
-                        Text(if (participant.id == group.currentMemberParticipantId) "You" else participant.displayName, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(start = 9.dp).weight(1f))
+                        Text(if (participant.id == group.currentMemberParticipantId) strings.get(R.string.you) else participant.displayName, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(start = 9.dp).weight(1f))
                         if (editor.splitMode == SplitMode.EQUAL) {
-                            Text(if (selected && preview.isFailure) "—" else formatMinor(allocations[participant.id] ?: 0, group), color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                            Text(if (selected && preview.isFailure) "—" else strings.money(allocations[participant.id] ?: 0, group), color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
                         } else {
                             OutlinedTextField(
                                 value = editor.entryValues[participant.id].orEmpty(),
@@ -1536,29 +1560,30 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = if (editor.splitMode == SplitMode.WEIGHTED) KeyboardType.Number else KeyboardType.Decimal),
                                 modifier = Modifier.width(108.dp).testTag("split_value_${participant.id}"),
-                                supportingText = { allocations[participant.id]?.let { Text(formatMinor(it, group)) } },
-                                suffix = { Text(when (editor.splitMode) { SplitMode.PERCENTAGE -> "%"; SplitMode.WEIGHTED -> "shares"; else -> group.currency }, fontSize = 10.sp) },
+                                supportingText = { allocations[participant.id]?.let { Text(strings.money(it, group)) } },
+                                suffix = { Text(when (editor.splitMode) { SplitMode.PERCENTAGE -> "%"; SplitMode.WEIGHTED -> strings.get(R.string.shares_short); else -> group.currency }, fontSize = 10.sp) },
                             )
                         }
                     }
                 }
             }
             OutlinedTextField(editor.note, { onAction(SplitTheBillsAction.ExpenseNoteChanged(it)) },
-                label = { Text("Note (optional)") }, minLines = 2,
+                label = { Text(strings.get(R.string.note_optional)) }, minLines = 2,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp).testTag("expense_note"))
-            state.draftNotice?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
+            state.draftNotice?.let { Text(strings.resolve(it), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp)) }
             TextButton(onClick = { onAction(SplitTheBillsAction.DiscardExpenseDraft) }, enabled = !state.saving) {
-                Text(if (editor.expenseId == null) "Discard draft" else "Discard changes")
+                Text(if (editor.expenseId == null) strings.get(R.string.discard_draft) else strings.get(R.string.discard_changes))
             }
         }
-        Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), color = MaterialTheme.colorScheme.background, shadowElevation = 1.dp) {
+        Surface(Modifier.align(Alignment.BottomCenter).fillMaxWidth().testTag("expense_footer")
+            .onSizeChanged { footerHeight = with(density) { it.height.toDp() } }, color = MaterialTheme.colorScheme.background, shadowElevation = 1.dp) {
             Button(
                 onClick = { onAction(SplitTheBillsAction.SubmitExpense) },
                 enabled = !state.saving && state.online,
-                modifier = Modifier.fillMaxWidth().padding(12.dp).height(56.dp).testTag("expense_submit"),
+                modifier = Modifier.fillMaxWidth().padding(12.dp).heightIn(min = 56.dp).testTag("expense_submit"),
                 shape = RoundedCornerShape(18.dp),
             ) {
-                Icon(Icons.Filled.Check, null, Modifier.size(21.dp)); Spacer(Modifier.width(8.dp)); Text(if (editor.expenseId == null) "Save expense · ${formatMinor(amountMinor, group)}" else "Save changes", fontWeight = FontWeight.ExtraBold)
+                Icon(Icons.Filled.Check, null, Modifier.size(21.dp)); Spacer(Modifier.width(8.dp)); Text(if (editor.expenseId == null) strings.get(R.string.save_expense_value, strings.money(amountMinor, group)) else strings.get(R.string.save_changes), fontWeight = FontWeight.ExtraBold)
             }
         }
     }
@@ -1566,35 +1591,48 @@ private fun ExpenseEditorScreen(state: SplitTheBillsUiState, padding: PaddingVal
 
 @Composable
 private fun ExpenseSplitSegmented(mode: SplitMode, onSelected: (SplitMode) -> Unit) {
-    val options = listOf(SplitMode.EQUAL to "Equally", SplitMode.PERCENTAGE to "Percent", SplitMode.EXACT to "Custom", SplitMode.WEIGHTED to "Shares")
-    Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer, shape = CircleShape) {
-        Row(Modifier.padding(4.dp)) {
-            options.forEach { (value, label) ->
-                Surface(Modifier.weight(1f).height(36.dp).clickable { onSelected(value) }, color = if (mode == value) MaterialTheme.colorScheme.surface else Color.Transparent, shape = CircleShape, shadowElevation = if (mode == value) 0.5.dp else 0.dp) {
-                    Box(contentAlignment = Alignment.Center) { Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = if (mode == value) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant) }
+    val strings = uiStrings()
+    val options = listOf(SplitMode.EQUAL to strings.get(R.string.equally), SplitMode.PERCENTAGE to strings.get(R.string.percent), SplitMode.EXACT to strings.get(R.string.custom), SplitMode.WEIGHTED to strings.get(R.string.shares))
+    val columns = if (LocalDensity.current.fontScale > 1.3f) 2 else 4
+    Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(24.dp)) {
+        Column(Modifier.padding(4.dp).selectableGroup(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            options.chunked(columns).forEach { row ->
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    row.forEach { (value, label) ->
+                        Surface(
+                            Modifier.weight(1f).fillMaxHeight().heightIn(min = 40.dp)
+                                .selectable(selected = mode == value, role = androidx.compose.ui.semantics.Role.RadioButton) { onSelected(value) }
+                                .semantics { contentDescription = strings.splitMode(value) },
+                            color = if (mode == value) MaterialTheme.colorScheme.surface else Color.Transparent,
+                            shape = CircleShape, shadowElevation = if (mode == value) 0.5.dp else 0.dp,
+                        ) {
+                            Box(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
+                                Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, textAlign = TextAlign.Center,
+                                    color = if (mode == value) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-private fun currencySymbol(currency: String): String =
-    runCatching { java.util.Currency.getInstance(currency).symbol }.getOrDefault(currency)
-
 @Composable
 private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingValues, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
     val group = state.selectedGroup ?: return
     val expense = group.expenses.firstOrNull { it.id == state.selectedExpenseId }
     if (expense == null) {
-        Page(padding) { EmptyCard("Expense unavailable", "It may have been removed on another device.") }
+        Page(padding) { EmptyCard(strings.get(R.string.expense_unavailable), strings.get(R.string.it_may_have_been_removed_on_another_device)) }
         return
     }
     var confirmRemove by rememberSaveable(expense.id) { mutableStateOf(false) }
     val canEdit = !group.archived && (state.user?.uid == group.ownerUid || state.user?.uid == expense.createdByUid)
-    if (confirmRemove) AlertDialog(onDismissRequest = { confirmRemove = false }, title = { Text("Remove this expense?") },
-        text = { Text("The expense will be removed and its effect on everyone's balance will be reversed.") },
-        confirmButton = { TextButton(onClick = { confirmRemove = false; onAction(SplitTheBillsAction.DeleteSelectedExpense) }) { Text("Remove expense") } },
-        dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("Cancel") } })
+    if (confirmRemove) AlertDialog(onDismissRequest = { confirmRemove = false }, title = { Text(strings.get(R.string.remove_this_expense)) },
+        text = { Text(strings.get(R.string.the_expense_will_be_removed_and_its_effect_on_everyone_s_balance)) },
+        confirmButton = { TextButton(onClick = { confirmRemove = false; onAction(SplitTheBillsAction.DeleteSelectedExpense) }) { Text(strings.get(R.string.remove_expense)) } },
+        dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text(strings.get(R.string.cancel)) } })
     val locale = LocalConfiguration.current.locales[0]
     Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
         Column(
@@ -1628,11 +1666,11 @@ private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingVal
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Total expense", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                    StatusPill(expense.category.lowercase().replaceFirstChar(Char::uppercase), MaterialTheme.colorScheme.surfaceContainer)
+                    Text(strings.get(R.string.total_expense), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    StatusPill(strings.category(expense.category), MaterialTheme.colorScheme.surfaceContainer)
                 }
                 Text(
-                    format(expense.amountMinor, group),
+                    strings.money(expense.amountMinor, group),
                     fontSize = 36.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = (-1).sp,
@@ -1655,7 +1693,7 @@ private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingVal
                     ) {
                         Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Icon(Icons.Filled.Check, null, Modifier.size(13.dp))
-                            Text(when { group.archived -> "Archived"; group.fromCache -> "Cached copy"; else -> "Saved" }, style = MaterialTheme.typography.labelSmall)
+                            Text(when { group.archived -> strings.get(R.string.archived); group.fromCache -> strings.get(R.string.cached_copy); else -> strings.get(R.string.saved) }, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -1663,14 +1701,14 @@ private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingVal
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionHeader("Paid by", null, {})
+                SectionHeader(strings.get(R.string.paid_by), null, {})
                 DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
                     expense.contributions.forEachIndexed { index, contribution ->
                         if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                         ExpensePersonRow(
-                            name = nameOf(group, contribution.participantId),
-                            caption = if (contribution.participantId == group.currentMemberParticipantId) "Paid by you" else "Paid toward this expense",
-                            amount = format(contribution.amountMinor, group),
+                            name = strings.person(group, contribution.participantId),
+                            caption = if (contribution.participantId == group.currentMemberParticipantId) strings.get(R.string.paid_by_you) else strings.get(R.string.paid_toward_this_expense),
+                            amount = strings.money(contribution.amountMinor, group),
                             accent = contribution.participantId == group.currentMemberParticipantId,
                         )
                     }
@@ -1679,16 +1717,16 @@ private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingVal
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Confirmed shares", fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).semantics { heading() })
-                    StatusPill("${expense.splitMode.label()} split", MaterialTheme.colorScheme.surfaceContainer)
+                    Text(strings.get(R.string.confirmed_shares), fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).semantics { heading() })
+                    StatusPill(strings.get(R.string.value_split, strings.splitMode(expense.splitMode)), MaterialTheme.colorScheme.surfaceContainer)
                 }
                 DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)) {
                     expense.allocations.forEachIndexed { index, allocation ->
                         if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                         ExpensePersonRow(
-                            name = nameOf(group, allocation.participantId),
-                            caption = if (allocation.participantId == group.currentMemberParticipantId) "Your share" else "Share of expense",
-                            amount = format(allocation.amountMinor, group),
+                            name = strings.person(group, allocation.participantId),
+                            caption = if (allocation.participantId == group.currentMemberParticipantId) strings.get(R.string.your_share) else strings.get(R.string.share_of_expense),
+                            amount = strings.money(allocation.amountMinor, group),
                             accent = allocation.participantId == group.currentMemberParticipantId,
                         )
                     }
@@ -1697,15 +1735,15 @@ private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingVal
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text("Total shares", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                        Text(format(expense.allocations.sumOf { it.amountMinor }, group), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text(strings.get(R.string.total_shares), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                        Text(strings.money(expense.allocations.sumOf { it.amountMinor }, group), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
             expense.note?.takeIf(String::isNotBlank)?.let { note ->
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionHeader("Note", null, {})
+                    SectionHeader(strings.get(R.string.note), null, {})
                     DesignCard(Modifier.fillMaxWidth()) { Text(note, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
@@ -1728,7 +1766,7 @@ private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingVal
                     ) {
                         Icon(Icons.Outlined.Edit, null, Modifier.size(19.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(if (state.online) "Edit" else "Edit draft", fontWeight = FontWeight.Bold)
+                        Text(if (state.online) strings.get(R.string.edit) else strings.get(R.string.edit_draft), fontWeight = FontWeight.Bold)
                     }
                     OutlinedButton(
                         onClick = { confirmRemove = true },
@@ -1739,7 +1777,7 @@ private fun ExpenseDetailScreen(state: SplitTheBillsUiState, padding: PaddingVal
                     ) {
                         Icon(Icons.Outlined.DeleteOutline, null, Modifier.size(19.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Remove", fontWeight = FontWeight.Bold)
+                        Text(strings.get(R.string.remove), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1770,19 +1808,20 @@ private fun ExpensePersonRow(name: String, caption: String, amount: String, acce
 
 @Composable
 private fun SettlementEditorScreen(state: SplitTheBillsUiState, padding: PaddingValues, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
     val group = state.selectedGroup ?: return
     val form = state.settlementEditor
     Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(group.name, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         Row(Modifier.padding(vertical = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) { Avatar(nameOf(group, form.fromParticipantId), 58.dp); Text(nameOf(group, form.fromParticipantId), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp)) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) { Avatar(strings.person(group, form.fromParticipantId), 58.dp); Text(strings.person(group, form.fromParticipantId), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp)) }
             Surface(Modifier.size(44.dp), color = MaterialTheme.colorScheme.surface, shape = CircleShape) { Box(contentAlignment = Alignment.Center) { Text("→", fontSize = 22.sp) } }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) { Avatar(nameOf(group, form.toParticipantId), 58.dp); Text(nameOf(group, form.toParticipantId), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp)) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) { Avatar(strings.person(group, form.toParticipantId), 58.dp); Text(strings.person(group, form.toParticipantId), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp)) }
         }
         OutlinedTextField(
             form.amount,
             { onAction(SplitTheBillsAction.SettlementAmountChanged(it)) },
-            prefix = { Text(currencySymbol(group.currency), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 24.sp) },
+            prefix = { Text(strings.currencySymbol(group.currency), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 24.sp) },
             textStyle = MaterialTheme.typography.headlineMedium.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.ExtraBold),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
@@ -1790,10 +1829,10 @@ private fun SettlementEditorScreen(state: SplitTheBillsUiState, padding: Padding
             modifier = Modifier.fillMaxWidth().testTag("settlement_amount"),
         )
         DesignCard(Modifier.fillMaxWidth().padding(top = 18.dp), contentPadding = PaddingValues(14.dp)) {
-            Text("Paid by", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(strings.get(R.string.paid_by), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             ParticipantChips(group.participants, form.fromParticipantId) { onAction(SplitTheBillsAction.SettlementFromChanged(it)) }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), modifier = Modifier.padding(vertical = 8.dp))
-            Text("Paid to", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(strings.get(R.string.paid_to), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             ParticipantChips(group.participants, form.toParticipantId) { onAction(SplitTheBillsAction.SettlementToChanged(it)) }
         }
         OperationDateField(
@@ -1801,16 +1840,18 @@ private fun SettlementEditorScreen(state: SplitTheBillsUiState, padding: Padding
             onDateSelected = { onAction(SplitTheBillsAction.SettlementDateChanged(it)) },
             modifier = Modifier.padding(top = 14.dp).testTag("settlement_date"),
         )
-        OutlinedTextField(form.note, { onAction(SplitTheBillsAction.SettlementNoteChanged(it)) }, label = { Text("Note (optional)") }, minLines = 2, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), shape = RoundedCornerShape(16.dp))
-        Text("This records money already paid outside Split the Bills. The app does not transfer funds.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(12.dp), textAlign = TextAlign.Center)
-        Button(onClick = { onAction(SplitTheBillsAction.SubmitSettlement) }, enabled = !group.archived && !state.saving && state.online, modifier = Modifier.fillMaxWidth().height(56.dp).testTag("settlement_submit"), shape = RoundedCornerShape(18.dp)) {
-            Icon(Icons.Filled.Check, null, Modifier.size(20.dp)); Spacer(Modifier.width(7.dp)); Text(if (form.settlementId == null) "Mark as settled" else "Save repayment", fontWeight = FontWeight.ExtraBold)
+        OutlinedTextField(form.note, { onAction(SplitTheBillsAction.SettlementNoteChanged(it)) }, label = { Text(strings.get(R.string.note_optional)) }, minLines = 2, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), shape = RoundedCornerShape(16.dp))
+        Text(strings.get(R.string.this_records_money_already_paid_outside_split_the_bills_the_app_d), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(12.dp), textAlign = TextAlign.Center)
+        Button(onClick = { onAction(SplitTheBillsAction.SubmitSettlement) }, enabled = !group.archived && !state.saving && state.online, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("settlement_submit"), shape = RoundedCornerShape(18.dp)) {
+            Icon(Icons.Filled.Check, null, Modifier.size(20.dp)); Spacer(Modifier.width(7.dp)); Text(if (form.settlementId == null) strings.get(R.string.mark_as_settled) else strings.get(R.string.save_repayment), fontWeight = FontWeight.ExtraBold)
         }
     }
 }
 
 @Composable
 private fun SettingsScreen(state: SplitTheBillsUiState, padding: PaddingValues, onAction: (SplitTheBillsAction) -> Unit, onBiometricLockChange: ((Boolean) -> Unit)?) {
+    val strings = uiStrings()
+    var choosingLanguage by rememberSaveable { mutableStateOf(false) }
     var editingName by rememberSaveable { mutableStateOf(false) }
     var editingCurrency by rememberSaveable { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -1820,73 +1861,80 @@ private fun SettingsScreen(state: SplitTheBillsUiState, padding: PaddingValues, 
     val profileDisplayName = state.user?.displayName?.takeIf(String::isNotBlank)
         ?: state.profileName.takeIf(String::isNotBlank)
         ?: state.user?.email?.substringBefore('@')
-        ?: "You"
+        ?: strings.get(R.string.you)
     Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         GroupLoadStatus(state, onAction)
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Profile", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            Text(strings.get(R.string.profile), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = "Profile options") }
+                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = strings.get(R.string.profile_options)) }
                 DropdownMenu(menu, { menu = false }) {
-                    DropdownMenuItem(text = { Text("Edit display name") }, onClick = { menu = false; editingName = true })
-                    DropdownMenuItem(text = { Text("View friends") }, onClick = { menu = false; onAction(SplitTheBillsAction.OpenFeature(AppScreen.FRIENDS)) })
-                    DropdownMenuItem(text = { Text("Help & support") }, onClick = { menu = false; onAction(SplitTheBillsAction.OpenFeature(AppScreen.HELP)) })
+                    DropdownMenuItem(text = { Text(strings.get(R.string.edit_display_name)) }, onClick = { menu = false; editingName = true })
+                    DropdownMenuItem(text = { Text(strings.get(R.string.view_friends)) }, onClick = { menu = false; onAction(SplitTheBillsAction.OpenFeature(AppScreen.FRIENDS)) })
+                    DropdownMenuItem(text = { Text(strings.get(R.string.help_support)) }, onClick = { menu = false; onAction(SplitTheBillsAction.OpenFeature(AppScreen.HELP)) })
                 }
             }
         }
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Avatar(profileDisplayName, 88.dp)
             Text(profileDisplayName, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 10.dp))
-            Text(state.user?.email ?: "Signed in", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(state.user?.email ?: strings.get(R.string.signed_in), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ProfileMetric(state.groups.size.toString(), "Groups", Modifier.weight(1f))
-                ProfileMetric(peopleCount.toString(), "Friends", Modifier.weight(1f))
-                ProfileMetric(allGroups.sumOf { it.settlements.size }.toString(), "Settled", Modifier.weight(1f))
+                ProfileMetric(state.groups.size.toString(), strings.get(R.string.groups), Modifier.weight(1f))
+                ProfileMetric(peopleCount.toString(), strings.get(R.string.friends), Modifier.weight(1f))
+                ProfileMetric(allGroups.sumOf { it.settlements.size }.toString(), strings.get(R.string.settled), Modifier.weight(1f))
             }
         }
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
-                ProfileActionRow("Display name", profileDisplayName, onClick = { editingName = !editingName }) {
+                ProfileActionRow(strings.get(R.string.display_name), profileDisplayName, onClick = { editingName = !editingName }) {
                     if (editingName) {
                         OutlinedTextField(state.profileName, { onAction(SplitTheBillsAction.ProfileNameChanged(it)) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                        Button(onClick = { onAction(SplitTheBillsAction.SaveProfile); editingName = false }, enabled = !state.saving && state.online && state.profileName.isNotBlank(), modifier = Modifier.padding(top = 8.dp)) { Text("Save profile") }
+                        Button(onClick = { onAction(SplitTheBillsAction.SaveProfile); editingName = false }, enabled = !state.saving && state.online && state.profileName.isNotBlank(), modifier = Modifier.padding(top = 8.dp)) { Text(strings.get(R.string.save_profile)) }
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                ProfileActionRow("Default currency", state.preferences.defaultCurrency, onClick = { editingCurrency = !editingCurrency }) {
+                ProfileActionRow(strings.get(R.string.default_currency), state.preferences.defaultCurrency, onClick = { editingCurrency = !editingCurrency }) {
                     if (editingCurrency) CurrencyPickerField(state.preferences.defaultCurrency, {
                         onAction(SplitTheBillsAction.DefaultCurrencyChanged(it)); editingCurrency = false
                     }, Modifier.fillMaxWidth())
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                ProfileActionRow("Friends", "$peopleCount people", onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.FRIENDS)) })
+                ProfileActionRow(
+                    strings.get(R.string.language),
+                    strings.languageLabel(androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()[0]?.language.orEmpty()),
+                    onClick = { choosingLanguage = true },
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                ProfileActionRow(strings.get(R.string.friends), strings.plural(R.plurals.people_count, peopleCount), onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.FRIENDS)) })
             }
             DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
-                Text("APPEARANCE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
+                Text(strings.get(R.string.appearance), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ThemePreference.entries.forEach { preference ->
-                        DesignChip(preference.name.lowercase().replaceFirstChar(Char::uppercase), state.themePreference == preference) { onAction(SplitTheBillsAction.ThemeChanged(preference)) }
+                        DesignChip(strings.theme(preference), state.themePreference == preference) { onAction(SplitTheBillsAction.ThemeChanged(preference)) }
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp))
-                ProfileActionRow("Simplify debts", if (state.preferences.simplifyDebts) "Combine balances to reduce transfers" else "Keep original expense counterparties", showChevron = false) {
+                ProfileActionRow(strings.get(R.string.simplify_debts), if (state.preferences.simplifyDebts) strings.get(R.string.combine_balances_to_reduce_transfers) else strings.get(R.string.keep_original_expense_counterparties), showChevron = false) {
                     Switch(checked = state.preferences.simplifyDebts, onCheckedChange = { onAction(SplitTheBillsAction.SimplifyDebtsChanged(it)) }, modifier = Modifier.testTag("simplify_debts"))
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                ProfileActionRow("Biometric lock", if (state.preferences.biometricLock) "On · Authentication required when reopened" else "Off · Secure this app on your device", showChevron = false) {
+                ProfileActionRow(strings.get(R.string.biometric_lock), if (state.preferences.biometricLock) strings.get(R.string.on_authentication_required_when_reopened) else strings.get(R.string.off_secure_this_app_on_your_device), showChevron = false) {
                     Switch(checked = state.preferences.biometricLock, enabled = onBiometricLockChange != null,
                         onCheckedChange = { onBiometricLockChange?.invoke(it) }, modifier = Modifier.testTag("biometric_lock"))
                 }
             }
             DesignCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(6.dp)) {
-                ProfileActionRow("Help & support", "Get answers and report an issue", onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.HELP)) })
+                ProfileActionRow(strings.get(R.string.help_support), strings.get(R.string.get_answers_and_report_an_issue), onClick = { onAction(SplitTheBillsAction.OpenFeature(AppScreen.HELP)) })
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                Row(Modifier.fillMaxWidth().clickable { onAction(SplitTheBillsAction.SignOut) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) { Text("Sign out", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text("→", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Row(Modifier.fillMaxWidth().clickable { onAction(SplitTheBillsAction.SignOut) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) { Text(strings.get(R.string.sign_out), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text("→", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                TextButton(onClick = { onAction(SplitTheBillsAction.OpenAccountDeletion) }, enabled = !state.saving && state.online, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary), modifier = Modifier.fillMaxWidth()) { Text("Delete account") }
+                TextButton(onClick = { onAction(SplitTheBillsAction.OpenAccountDeletion) }, enabled = !state.saving && state.online, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary), modifier = Modifier.fillMaxWidth()) { Text(strings.get(R.string.delete_account)) }
             }
         }
     }
+    if (choosingLanguage) LanguagePicker { choosingLanguage = false }
 }
 
 @Composable
@@ -1908,30 +1956,31 @@ private fun ProfileActionRow(title: String, subtitle: String, showChevron: Boole
 
 @Composable
 private fun AccountDeletionDialog(state: SplitTheBillsUiState, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
     val deletion = state.accountDeletion
     if (!deletion.open) return
     val ownedGroups = state.groups.filter { it.role == "OWNER" }
     AlertDialog(
         onDismissRequest = { if (!state.saving) onAction(SplitTheBillsAction.CloseAccountDeletion) },
-        title = { Text("Delete your account?") },
+        title = { Text(strings.get(R.string.delete_your_account)) },
         text = {
             Column(
                 Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("This cannot be undone. Memberships are revoked, profile data is removed, local drafts are erased, and retained participant history is anonymized.")
+                Text(strings.get(R.string.this_cannot_be_undone_memberships_are_revoked_profile_data_is_rem))
                 if (deletion.loadingCandidates) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CircularProgressIndicator(Modifier.size(24.dp))
-                        Text("Loading ownership choices…")
+                        Text(strings.get(R.string.loading_ownership_choices))
                     }
                 } else {
                     ownedGroups.forEach { group ->
-                        Text("New owner for ${group.name}", fontWeight = FontWeight.SemiBold)
+                        Text(strings.get(R.string.new_owner_for_value, group.name), fontWeight = FontWeight.SemiBold)
                         val candidates = deletion.candidates[group.id].orEmpty()
                         if (candidates.isEmpty()) {
                             Text(
-                                "No other member is available. Invite someone to this group before deleting your account.",
+                                strings.get(R.string.no_other_member_is_available_invite_someone_to_this_group_before),
                                 color = MaterialTheme.colorScheme.error,
                             )
                         } else {
@@ -1942,7 +1991,7 @@ private fun AccountDeletionDialog(state: SplitTheBillsUiState, onAction: (SplitT
                                         onClick = {
                                             onAction(SplitTheBillsAction.AccountDeletionOwnerChanged(group.id, candidate.uid))
                                         },
-                                        label = { Text(candidate.displayName ?: "Member ${candidate.uid.take(8)}") },
+                                        label = { Text(candidate.displayName ?: strings.get(R.string.member_value, candidate.uid.take(8))) },
                                     )
                                 }
                             }
@@ -1952,7 +2001,7 @@ private fun AccountDeletionDialog(state: SplitTheBillsUiState, onAction: (SplitT
                 OutlinedTextField(
                     value = deletion.confirmation,
                     onValueChange = { onAction(SplitTheBillsAction.AccountDeletionConfirmationChanged(it)) },
-                    label = { Text("Type DELETE to confirm") },
+                    label = { Text(strings.get(R.string.type_delete_to_confirm)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1963,13 +2012,13 @@ private fun AccountDeletionDialog(state: SplitTheBillsUiState, onAction: (SplitT
                 onClick = { onAction(SplitTheBillsAction.ConfirmAccountDeletion) },
                 enabled = !state.saving && !deletion.loadingCandidates && deletion.confirmation == "DELETE",
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            ) { Text("Delete permanently") }
+            ) { Text(strings.get(R.string.delete_permanently)) }
         },
         dismissButton = {
             TextButton(
                 onClick = { onAction(SplitTheBillsAction.CloseAccountDeletion) },
                 enabled = !state.saving,
-            ) { Text("Cancel") }
+            ) { Text(strings.get(R.string.cancel)) }
         },
     )
 }
@@ -1985,32 +2034,33 @@ private fun ParticipantChips(participants: List<Participant>, selectedId: String
 
 @Composable
 private fun ErrorDialogs(state: SplitTheBillsUiState, onAction: (SplitTheBillsAction) -> Unit) {
+    val strings = uiStrings()
     state.error?.let { error ->
         AlertDialog(
             onDismissRequest = { onAction(SplitTheBillsAction.ErrorShown) },
-            title = { Text("Couldn’t complete that") },
-            text = { Text(error) },
-            confirmButton = { TextButton(onClick = { onAction(SplitTheBillsAction.ErrorShown) }) { Text("OK") } },
+            title = { Text(strings.get(R.string.couldn_t_complete_that)) },
+            text = { Text(strings.resolve(error)) },
+            confirmButton = { TextButton(onClick = { onAction(SplitTheBillsAction.ErrorShown) }) { Text(strings.get(R.string.ok)) } },
         )
     }
     state.conflict?.let { conflict ->
         AlertDialog(
             onDismissRequest = { onAction(SplitTheBillsAction.ConflictDismissed) },
-            title = { Text("Newer version found") },
-            text = { Text(conflict) },
+            title = { Text(strings.get(R.string.newer_version_found)) },
+            text = { Text(strings.resolve(conflict)) },
             confirmButton = {
                 TextButton(onClick = { onAction(SplitTheBillsAction.ConflictReloaded) }) {
                     Text(
                         when (state.conflictTarget) {
-                            ConflictTarget.INVITATION -> "Refresh invitation"
-                            ConflictTarget.GROUP -> "Reload group"
-                            else -> "Reload server version"
+                            ConflictTarget.INVITATION -> strings.get(R.string.refresh_invitation)
+                            ConflictTarget.GROUP -> strings.get(R.string.reload_group)
+                            else -> strings.get(R.string.reload_server_version)
                         },
                     )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { onAction(SplitTheBillsAction.ConflictDismissed) }) { Text("Keep draft") }
+                TextButton(onClick = { onAction(SplitTheBillsAction.ConflictDismissed) }) { Text(strings.get(R.string.keep_draft)) }
             },
         )
     }
@@ -2109,21 +2159,23 @@ private fun LoadingBlock() {
 
 @Composable
 private fun OfflineBanner() {
+    val strings = uiStrings()
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
         modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
     ) {
-        Text("Offline · cached data remains available; shared changes are disabled", modifier = Modifier.padding(10.dp), color = MaterialTheme.colorScheme.onErrorContainer)
+        Text(strings.get(R.string.offline_cached_data_remains_available_shared_changes_are_disabled), modifier = Modifier.padding(10.dp), color = MaterialTheme.colorScheme.onErrorContainer)
     }
 }
 
 @Composable
 private fun SavingOverlay() {
+    val strings = uiStrings()
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), shape = RoundedCornerShape(18.dp), tonalElevation = 8.dp) {
             Row(Modifier.padding(22.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(28.dp))
-                Text("Waiting for server confirmation…")
+                Text(strings.get(R.string.waiting_for_server_confirmation))
             }
         }
     }
@@ -2131,39 +2183,16 @@ private fun SavingOverlay() {
 
 @Composable
 private fun MoneyText(amountMinor: Long, group: GroupDetail) {
-    Text(format(amountMinor, group), fontWeight = FontWeight.Bold)
+    val strings = uiStrings()
+    Text(strings.money(amountMinor, group), fontWeight = FontWeight.Bold)
 }
 
-private fun nameOf(group: GroupDetail, participantId: String): String =
-    group.participants.firstOrNull { it.id == participantId }?.displayName ?: "Unknown participant"
-
-private fun format(amountMinor: Long, group: GroupDetail): String =
-    "${group.currency} ${MoneyText.formatMinor(amountMinor, CurrencyUnit(group.currency, group.currencyExponent))}"
 
 private fun invitationLink(token: String): String =
     "https://links.example.invalid/invite?token=${Uri.encode(token)}"
 
 private fun shortUid(uid: String): String = if (uid.length <= 10) uid else "${uid.take(6)}…${uid.takeLast(4)}"
 
-private fun formatActivityTime(epochMillis: Long): String = if (epochMillis <= 0L) {
-    "Time unavailable"
-} else {
-    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(epochMillis))
-}
-
-private fun SplitMode.label(): String = when (this) {
-    SplitMode.EQUAL -> "Equal"
-    SplitMode.EXACT -> "Exact"
-    SplitMode.PERCENTAGE -> "Percentage"
-    SplitMode.WEIGHTED -> "Shares"
-}
-
-private fun SplitMode.entryLabel(currency: String): String = when (this) {
-    SplitMode.EXACT -> currency
-    SplitMode.PERCENTAGE -> "basis points (10000 total)"
-    SplitMode.WEIGHTED -> "shares"
-    SplitMode.EQUAL -> "equal"
-}
 
 @PreviewScreenSizes
 @Composable

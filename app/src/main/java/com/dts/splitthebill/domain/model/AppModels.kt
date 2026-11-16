@@ -17,7 +17,7 @@ data class GroupSummary(
     val type: GroupType = GroupType.OTHER,
 )
 
-enum class GroupType(val label: String) { TRIP("Trip"), HOME("Home"), FRIENDS("Friends"), COUPLE("Couple"), OTHER("Other") }
+enum class GroupType { TRIP, HOME, FRIENDS, COUPLE, OTHER }
 
 data class Participant(
     val id: String,
@@ -95,6 +95,7 @@ data class ActivityEvent(
     val resourceRevision: Long,
     val occurredAtEpochMillis: Long,
     val resourceId: String? = null,
+    val subject: String? = null,
 )
 
 data class GroupDetail(
