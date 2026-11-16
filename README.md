@@ -8,6 +8,12 @@ For a step-by-step local server and Android virtual-device walkthrough, see
 [Development and emulator testing](docs/development.md). It includes prerequisites,
 server health checks, device routing, manual testing, and troubleshooting.
 
+To test against **real Firebase** on the running Android virtual device, use the `staging`
+variant and follow [Real Firebase testing and production deployment](docs/firebase-setup.md).
+That guide covers console setup, App Check, two-account testing, release signing, and the
+`npm --prefix functions run deploy:firebase -- --project YOUR_PROJECT_ID` deployment script.
+Add `--dry-run` to print its plan without running commands or contacting Firebase.
+
 ## Current status
 
 Milestones 1 through 6 are implemented: the Android/build foundation, responsive Compose UI,
@@ -22,8 +28,10 @@ deny direct client writes and private backend-collection access.
 
 Android now supports email account creation/sign-in, password reset, Google Credential
 Manager sign-in, sign-out, group creation, named participants, live group details,
-equal/exact/percentage expense entry, confirmed expense detail, edit/soft-delete, balances, activity, and
-external repayment recording. Shared writes are connectivity-gated and expose saving,
+equal/exact/percentage/weighted expense entry, confirmed expense detail, edit/soft-delete, balances, activity, and
+external repayment recording/edit/removal. Search, reminders, notifications, CSV export, group
+types/settings, friends, and preferences are connected to their data/system flows; see the
+[feature audit](docs/feature-audit.md). Shared writes are connectivity-gated and expose saving,
 failure, retry, and actionable stale-revision conflict states. Owners can create and revoke
 one-time invitation links/codes and explicitly approve member-to-participant links; signed-in
 users can redeem codes or incoming App Links. Activity displays server-written timestamps and
@@ -81,6 +89,10 @@ The Gradle wrapper and Firebase CLI are project-pinned. No global CLI install is
    node --version
    npm --prefix functions run emulators
    ```
+
+   Startup builds the backend and seeds four demo users plus shared expense groups. Wait for
+   **[demo] Demo data ready**, then sign in with **alice@demo.test / SplitDemo123!**.
+   See [Demo accounts and test data](docs/demo-data.md) for all logins and test scenarios.
 
    `java -version` must report 21 or newer, and Node must report the pinned Node 22 version. These
    exports apply to steps 5 and 6 when they are run in the same terminal. On Linux or

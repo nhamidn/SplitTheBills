@@ -7,6 +7,10 @@
 - [x] 5. Connect invitations/activity to Android and add conflict UX, offline viewing, and draft restoration.
 - [x] 6. Add persisted profile/theme/account-deletion settings; verify accessibility,
   compact/expanded layouts, large fonts, lint, and optimized release configuration.
+- [x] 7. Complete the remaining designed actions: search, reminders, notifications, CSV export,
+  group types/settings, friends/help, currency/debt/lock preferences, cross-group navigation,
+  all four split modes, and repayment detail/edit/removal. See the [feature audit](feature-audit.md)
+  and current verification in [development.md](development.md).
 
 Each mutation lands with authorization, idempotency, stale-revision, reversal, conservation,
 and cross-group-reference tests. Production deployment remains a separate explicitly

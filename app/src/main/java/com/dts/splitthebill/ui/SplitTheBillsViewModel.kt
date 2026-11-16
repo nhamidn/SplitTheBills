@@ -9,13 +9,15 @@ import com.dts.splitthebill.domain.model.ExpenseDraft
 import com.dts.splitthebill.domain.model.ExpenseInput
 import com.dts.splitthebill.domain.model.GroupDetail
 import com.dts.splitthebill.domain.model.GroupSummary
+import com.dts.splitthebill.domain.model.GroupType
+import com.dts.splitthebill.domain.repository.FeaturePreferences
 import com.dts.splitthebill.domain.model.InvitationSecret
 import com.dts.splitthebill.domain.model.InvitationSummary
 import com.dts.splitthebill.domain.model.OwnershipCandidate
 import com.dts.splitthebill.domain.model.OwnershipTransfer
 import com.dts.splitthebill.domain.model.SettlementInput
+import com.dts.splitthebill.domain.model.Settlement
 import com.dts.splitthebill.domain.model.SignedInUser
-import com.dts.splitthebill.domain.model.SplitEntryInput
 import com.dts.splitthebill.domain.model.SplitMode
 import com.dts.splitthebill.domain.repository.AuthRepository
 import com.dts.splitthebill.domain.repository.BackendException
@@ -42,10 +44,13 @@ import kotlinx.coroutines.launch
 enum class AppScreen {
     AUTH, GROUPS, CREATE_GROUP, GROUP_DETAIL, GROUP_MEMBERS, INVITATION_REDEMPTION,
     EXPENSE_EDITOR, EXPENSE_DETAIL, SETTLEMENT_EDITOR, SETTINGS,
+    SEARCH, NOTIFICATIONS, REMINDERS, FRIENDS, HELP, GROUP_OPTIONS, SETTLEMENT_PICKER,
+    EXPENSE_GROUP_PICKER, SETTLEMENT_DETAIL,
 }
+enum class MainDestination { HOME, GROUPS, ACTIVITY, PROFILE }
 enum class AuthMode { SIGN_IN, CREATE_ACCOUNT }
-enum class GroupTab { EXPENSES, BALANCES, ACTIVITY }
-enum class ConflictTarget { EXPENSE, INVITATION, GROUP }
+enum class GroupTab { EXPENSES, BALANCES, MEMBERS, ACTIVITY }
+enum class ConflictTarget { EXPENSE, SETTLEMENT, INVITATION, GROUP }
 
 data class AuthFormState(
     val mode: AuthMode = AuthMode.SIGN_IN,
@@ -57,6 +62,7 @@ data class CreateGroupFormState(
     val name: String = "",
     val currency: String = "EUR",
     val participantName: String = "",
+    val type: GroupType = GroupType.OTHER,
 )
 
 data class ExpenseEditorState(
@@ -95,6 +101,9 @@ data class GroupMembersState(
 )
 
 data class SettlementEditorState(
+    val settlementId: String? = null,
+    val expectedRevision: Long? = null,
+    val operationId: String = newOperationId(),
     val fromParticipantId: String = "",
     val toParticipantId: String = "",
     val amount: String = "",
@@ -116,19 +125,30 @@ data class SplitTheBillsUiState(
     val authResolved: Boolean = false,
     val user: SignedInUser? = null,
     val screen: AppScreen = AppScreen.AUTH,
+    val mainDestination: MainDestination = MainDestination.HOME,
     val authForm: AuthFormState = AuthFormState(),
     val groups: List<GroupSummary> = emptyList(),
     val groupsLoading: Boolean = false,
+    val groupDetails: Map<String, GroupDetail> = emptyMap(),
+    val groupErrors: Map<String, String> = emptyMap(),
     val selectedGroup: GroupDetail? = null,
+    val selectedGroupId: String? = null,
     val groupLoading: Boolean = false,
     val selectedTab: GroupTab = GroupTab.EXPENSES,
     val selectedExpenseId: String? = null,
+    val selectedSettlementId: String? = null,
+    val settlementDeleteOperationId: String = newOperationId(),
     val createGroupForm: CreateGroupFormState = CreateGroupFormState(),
     val expenseEditor: ExpenseEditorState = ExpenseEditorState(),
     val settlementEditor: SettlementEditorState = SettlementEditorState(),
     val invitationRedemption: InvitationRedemptionState = InvitationRedemptionState(),
     val groupMembers: GroupMembersState = GroupMembersState(),
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val preferences: FeaturePreferences = FeaturePreferences(),
+    val preferencesResolved: Boolean = false,
+    val searchScope: String = "All",
+    val exportDocument: ExportDocument? = null,
+    val exportRequested: Boolean = false,
     val profileName: String = "",
     val accountDeletion: AccountDeletionState = AccountDeletionState(),
     val accountDeleted: Boolean = false,
@@ -144,6 +164,25 @@ data class SplitTheBillsUiState(
 )
 
 sealed interface SplitTheBillsAction {
+    data class Navigate(val destination: MainDestination) : SplitTheBillsAction
+    data class OpenFeature(val screen: AppScreen, val scope: String = "All") : SplitTheBillsAction
+    data class DefaultCurrencyChanged(val value: String) : SplitTheBillsAction
+    data class SimplifyDebtsChanged(val value: Boolean) : SplitTheBillsAction
+    data class BiometricLockChanged(val value: Boolean) : SplitTheBillsAction
+    data object MarkNotificationsRead : SplitTheBillsAction
+    data object ExportGroup : SplitTheBillsAction
+    data object ExportPickerOpened : SplitTheBillsAction
+    data class ExportFinished(val error: String? = null, val saved: Boolean = false) : SplitTheBillsAction
+    data class OpenGroupExpense(val groupId: String, val expenseId: String) : SplitTheBillsAction
+    data class AddExpenseToGroup(val groupId: String) : SplitTheBillsAction
+    data class OpenGroupSettlement(val groupId: String, val settlementId: String) : SplitTheBillsAction
+    data object EditSelectedSettlement : SplitTheBillsAction
+    data object DeleteSelectedSettlement : SplitTheBillsAction
+    data class PrepareSettlement(val groupId: String, val from: String, val to: String, val amount: Long) : SplitTheBillsAction
+    data class SaveGroupSettings(val name: String, val type: GroupType, val expectedRevision: Long) : SplitTheBillsAction
+    data class ReportError(val message: String) : SplitTheBillsAction
+    data object ArchiveGroup : SplitTheBillsAction
+    data class CreateGroupTypeChanged(val value: GroupType) : SplitTheBillsAction
     data class AuthEmailChanged(val value: String) : SplitTheBillsAction
     data class AuthPasswordChanged(val value: String) : SplitTheBillsAction
     data class AuthModeChanged(val value: AuthMode) : SplitTheBillsAction
@@ -227,6 +266,8 @@ class SplitTheBillsViewModel @Inject constructor(
     private var groupsJob: Job? = null
     private var groupJob: Job? = null
     private var draftJob: Job? = null
+    private val overviewJobs = mutableMapOf<String, Job>()
+    private var observedUid: String? = null
 
     init {
         viewModelScope.launch {
@@ -238,6 +279,10 @@ class SplitTheBillsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            userPreferencesRepository.features.catch { error("Could not load preferences. Please restart the app.") }
+                .collect { preferences -> mutableState.update { it.copy(preferences = preferences, preferencesResolved = true) } }
+        }
+        viewModelScope.launch {
             authRepository.currentUser.collect { user ->
                 if (user == null) signedOut() else signedIn(user)
             }
@@ -246,6 +291,58 @@ class SplitTheBillsViewModel @Inject constructor(
 
     fun onAction(action: SplitTheBillsAction) {
         when (action) {
+            is SplitTheBillsAction.Navigate -> mutableState.update { it.copy(
+                mainDestination = action.destination,
+                screen = if (action.destination == MainDestination.PROFILE) AppScreen.SETTINGS else AppScreen.GROUPS,
+            ) }
+            is SplitTheBillsAction.OpenFeature -> mutableState.update { it.copy(screen = action.screen, searchScope = action.scope) }
+            is SplitTheBillsAction.DefaultCurrencyChanged -> savePreference { userPreferencesRepository.setDefaultCurrency(action.value) }
+            is SplitTheBillsAction.SimplifyDebtsChanged -> savePreference { userPreferencesRepository.setSimplifyDebts(action.value) }
+            is SplitTheBillsAction.BiometricLockChanged -> savePreference { userPreferencesRepository.setBiometricLock(action.value) }
+            SplitTheBillsAction.MarkNotificationsRead -> {
+                val state = mutableState.value
+                val uid = state.user?.uid ?: return
+                val latest = notifications(state.groupDetails.values, uid).maxOfOrNull { it.event.occurredAtEpochMillis } ?: return
+                savePreference { userPreferencesRepository.markNotificationsRead(uid, latest) }
+            }
+            SplitTheBillsAction.ExportGroup -> mutableState.value.selectedGroup?.let { group ->
+                mutableState.update { it.copy(exportDocument = ExportDocument("split-the-bills-${group.id}.csv", groupCsv(group)), exportRequested = true) }
+            }
+            SplitTheBillsAction.ExportPickerOpened -> mutableState.update { it.copy(exportRequested = false) }
+            is SplitTheBillsAction.ExportFinished -> mutableState.update {
+                it.copy(exportDocument = null, exportRequested = false, error = action.error,
+                    message = if (action.saved) "CSV saved" else it.message)
+            }
+            is SplitTheBillsAction.OpenGroupExpense -> openGroup(action.groupId, AppScreen.EXPENSE_DETAIL, action.expenseId)
+            is SplitTheBillsAction.OpenGroupSettlement -> {
+                openGroup(action.groupId, AppScreen.SETTLEMENT_DETAIL, settlementId = action.settlementId)
+                mutableState.update { it.copy(settlementDeleteOperationId = newOperationId()) }
+            }
+            is SplitTheBillsAction.AddExpenseToGroup -> {
+                val group = mutableState.value.groupDetails[action.groupId] ?: return error("This group is still loading. Please try again.")
+                if (group.archived) return error("This group is archived.")
+                openGroup(group.id)
+                openExpenseEditor(null)
+            }
+            SplitTheBillsAction.EditSelectedSettlement -> selectedSettlement()?.let { settlement ->
+                val group = mutableState.value.selectedGroup ?: return
+                if (!canChangeRecord(group, settlement.createdByUid)) return error("Only the creator or group owner can edit this repayment.")
+                mutableState.update { it.copy(screen = AppScreen.SETTLEMENT_EDITOR, settlementEditor = settlementEditorFor(settlement, group)) }
+            }
+            SplitTheBillsAction.DeleteSelectedSettlement -> deleteSelectedSettlement()
+            is SplitTheBillsAction.PrepareSettlement -> {
+                val group = mutableState.value.groupDetails[action.groupId] ?: mutableState.value.selectedGroup?.takeIf { it.id == action.groupId } ?: return
+                if (group.archived || group.fromCache || !mutableState.value.online) return error("Connect and refresh this group before recording a repayment.")
+                openGroup(group.id, AppScreen.SETTLEMENT_EDITOR)
+                mutableState.update { it.copy(settlementEditor = SettlementEditorState(
+                    fromParticipantId = action.from, toParticipantId = action.to,
+                    amount = MoneyText.formatMinor(action.amount, CurrencyUnit(group.currency, group.currencyExponent)),
+                )) }
+            }
+            is SplitTheBillsAction.SaveGroupSettings -> saveGroupSettings(action.name, action.type, action.expectedRevision)
+            is SplitTheBillsAction.ReportError -> error(action.message)
+            SplitTheBillsAction.ArchiveGroup -> archiveSelectedGroup()
+            is SplitTheBillsAction.CreateGroupTypeChanged -> updateCreateGroup { copy(type = action.value) }
             is SplitTheBillsAction.AuthEmailChanged -> updateAuth { copy(email = action.value) }
             is SplitTheBillsAction.AuthPasswordChanged -> updateAuth { copy(password = action.value) }
             is SplitTheBillsAction.AuthModeChanged -> updateAuth { copy(mode = action.value) }
@@ -273,10 +370,10 @@ class SplitTheBillsViewModel @Inject constructor(
                 )
             }
             SplitTheBillsAction.ConfirmAccountDeletion -> confirmAccountDeletion()
-            SplitTheBillsAction.OpenGroups -> mutableState.update { it.copy(screen = AppScreen.GROUPS) }
-            SplitTheBillsAction.OpenSettings -> mutableState.update { it.copy(screen = AppScreen.SETTINGS) }
+            SplitTheBillsAction.OpenGroups -> mutableState.update { it.copy(screen = AppScreen.GROUPS, mainDestination = MainDestination.GROUPS) }
+            SplitTheBillsAction.OpenSettings -> mutableState.update { it.copy(screen = AppScreen.SETTINGS, mainDestination = MainDestination.PROFILE) }
             SplitTheBillsAction.OpenCreateGroup -> mutableState.update {
-                it.copy(screen = AppScreen.CREATE_GROUP, createGroupForm = CreateGroupFormState())
+                it.copy(screen = AppScreen.CREATE_GROUP, createGroupForm = CreateGroupFormState(currency = it.preferences.defaultCurrency))
             }
             SplitTheBillsAction.OpenInvitationRedemption -> mutableState.update {
                 it.copy(screen = AppScreen.INVITATION_REDEMPTION, invitationRedemption = InvitationRedemptionState())
@@ -312,7 +409,11 @@ class SplitTheBillsViewModel @Inject constructor(
             is SplitTheBillsAction.OpenExpense -> mutableState.update {
                 it.copy(screen = AppScreen.EXPENSE_DETAIL, selectedExpenseId = action.expenseId)
             }
-            SplitTheBillsAction.EditSelectedExpense -> selectedExpense()?.let(::openExpenseEditor)
+            SplitTheBillsAction.EditSelectedExpense -> selectedExpense()?.let { expense ->
+                val group = mutableState.value.selectedGroup ?: return
+                if (!canChangeRecord(group, expense.createdByUid)) return error("Only the creator or group owner can edit this expense.")
+                openExpenseEditor(expense)
+            }
             SplitTheBillsAction.DeleteSelectedExpense -> deleteSelectedExpense()
             is SplitTheBillsAction.ExpenseTitleChanged -> updateExpense { copy(title = action.value) }
             is SplitTheBillsAction.ExpenseAmountChanged -> updateExpense { copy(amount = action.value) }
@@ -351,19 +452,22 @@ class SplitTheBillsViewModel @Inject constructor(
         groupsJob?.cancel()
         groupJob?.cancel()
         draftJob?.cancel()
+        overviewJobs.values.forEach { it.cancel() }
+        overviewJobs.clear()
+        observedUid = null
         mutableState.update {
-            it.copy(
+            SplitTheBillsUiState(
                 authResolved = true,
-                user = null,
-                screen = AppScreen.AUTH,
-                groups = emptyList(),
-                selectedGroup = null,
-                saving = false,
+                themePreference = it.themePreference,
+                preferences = it.preferences,
+                preferencesResolved = it.preferencesResolved,
+                accountDeleted = it.accountDeleted,
             )
         }
     }
 
     private fun signedIn(user: SignedInUser) {
+        if (mutableState.value.user?.uid != null && mutableState.value.user?.uid != user.uid) signedOut()
         mutableState.update { current ->
             current.copy(
                 authResolved = true,
@@ -386,6 +490,30 @@ class SplitTheBillsViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { userPreferencesRepository.setTheme(theme) }
                 .onFailure { error("Could not save the appearance setting.") }
+        }
+    }
+
+    private fun savePreference(block: suspend () -> Unit) {
+        viewModelScope.launch { runCatching { block() }.onFailure { error("Could not save this setting. Please try again.") } }
+    }
+
+    private fun saveGroupSettings(name: String, type: GroupType, expectedRevision: Long) {
+        val group = mutableState.value.selectedGroup ?: return
+        if (group.ownerUid != mutableState.value.user?.uid) return error("Only the owner can change group settings.")
+        val trimmed = name.trim()
+        if (trimmed.codePointCount(0, trimmed.length) !in 1..80) return error("Use a group name between 1 and 80 characters.")
+        launchSaving(success = "Group updated", conflictTarget = ConflictTarget.GROUP) {
+            groupsRepository.renameGroup(group.id, expectedRevision, trimmed, type)
+            mutableState.update { it.copy(screen = AppScreen.GROUP_DETAIL) }
+        }
+    }
+
+    private fun archiveSelectedGroup() {
+        val group = mutableState.value.selectedGroup ?: return
+        if (group.ownerUid != mutableState.value.user?.uid) return error("Only the owner can archive this group.")
+        launchSaving(success = "Group archived", conflictTarget = ConflictTarget.GROUP) {
+            groupsRepository.archiveGroup(group.id, group.revision)
+            mutableState.update { it.copy(screen = AppScreen.GROUPS) }
         }
     }
 
@@ -468,6 +596,8 @@ class SplitTheBillsViewModel @Inject constructor(
                 groupsJob?.cancel()
                 groupJob?.cancel()
                 draftJob?.cancel()
+                overviewJobs.values.forEach { it.cancel() }
+                overviewJobs.clear()
                 runCatching { expenseDraftRepository.deleteForUser(uid) }
                 runCatching { authRepository.signOut() }
                 runCatching { groupsRepository.clearLocalCache() }
@@ -485,25 +615,71 @@ class SplitTheBillsViewModel @Inject constructor(
     }
 
     private fun observeGroups(user: SignedInUser) {
+        if (observedUid == user.uid && groupsJob?.isActive == true) return
+        observedUid = user.uid
         groupsJob?.cancel()
         groupsJob = viewModelScope.launch {
             mutableState.update { it.copy(groupsLoading = true) }
             groupsRepository.observeGroups(user.uid)
                 .catch { failure -> mutableState.update { it.copy(groupsLoading = false, error = readable(failure)) } }
-                .collect { groups -> mutableState.update { it.copy(groups = groups, groupsLoading = false) } }
+                .collect { groups ->
+                    val ids = groups.map { it.id }.toSet()
+                    (overviewJobs.keys - ids).forEach { overviewJobs.remove(it)?.cancel() }
+                    val lostSelection = mutableState.value.let { state ->
+                        state.groups.any { it.id == state.selectedGroupId } && state.selectedGroupId !in ids
+                    }
+                    if (lostSelection) groupJob?.cancel()
+                    mutableState.update { state -> state.copy(
+                        groups = groups, groupsLoading = false,
+                        groupDetails = state.groupDetails.filterKeys { it in ids },
+                        groupErrors = state.groupErrors.filterKeys { it in ids },
+                        selectedGroup = state.selectedGroup.takeUnless { lostSelection },
+                        selectedGroupId = state.selectedGroupId.takeUnless { lostSelection },
+                        groupLoading = if (lostSelection) false else state.groupLoading,
+                        screen = if (lostSelection) AppScreen.GROUPS else state.screen,
+                    ) }
+                    groups.filterNot { it.id in overviewJobs }.forEach { summary ->
+                        overviewJobs[summary.id] = viewModelScope.launch {
+                            groupsRepository.observeGroup(summary.id, user.uid)
+                                .catch { failure -> mutableState.update { it.copy(
+                                    groupDetails = it.groupDetails - summary.id,
+                                    groupErrors = it.groupErrors + (summary.id to readable(failure)),
+                                ) } }
+                                .collect { group ->
+                                    if (mutableState.value.user?.uid == user.uid) mutableState.update { state -> state.copy(
+                                        groupDetails = state.groupDetails + (group.id to group),
+                                        groupErrors = state.groupErrors - group.id,
+                                        selectedGroup = if (state.selectedGroupId == group.id) group else state.selectedGroup,
+                                    ) }
+                                }
+                        }
+                    }
+                }
         }
     }
 
-    private fun openGroup(groupId: String) {
+    private fun openGroup(
+        groupId: String,
+        screen: AppScreen = AppScreen.GROUP_DETAIL,
+        expenseId: String? = null,
+        settlementId: String? = null,
+    ) {
         val uid = mutableState.value.user?.uid ?: return
+        val loaded = mutableState.value.groupDetails[groupId]
         mutableState.update {
-            it.copy(screen = AppScreen.GROUP_DETAIL, selectedGroup = null, groupLoading = true, selectedTab = GroupTab.EXPENSES)
+            it.copy(screen = screen, selectedGroup = loaded, selectedGroupId = groupId, groupLoading = loaded == null,
+                selectedTab = if (it.selectedGroupId == groupId) it.selectedTab else GroupTab.EXPENSES,
+                selectedExpenseId = expenseId, selectedSettlementId = settlementId)
         }
         groupJob?.cancel()
         groupJob = viewModelScope.launch {
             groupsRepository.observeGroup(groupId, uid)
                 .catch { failure -> mutableState.update { it.copy(groupLoading = false, error = readable(failure)) } }
-                .collect { group -> mutableState.update { it.copy(selectedGroup = group, groupLoading = false) } }
+                .collect { group ->
+                    if (mutableState.value.user?.uid == uid && mutableState.value.selectedGroupId == groupId) {
+                        mutableState.update { it.copy(selectedGroup = group, groupLoading = false) }
+                    }
+                }
         }
     }
 
@@ -674,13 +850,14 @@ class SplitTheBillsViewModel @Inject constructor(
         val form = mutableState.value.createGroupForm
         if (form.name.isBlank() || form.participantName.isBlank()) return error("Group and participant names are required.")
         launchSaving(success = "Group created") {
-            val result = groupsRepository.createGroup(form.name.trim(), form.currency, form.participantName.trim())
+            val result = groupsRepository.createGroup(form.name.trim(), form.currency, form.participantName.trim(), form.type)
             openGroup(result.resourceId)
         }
     }
 
     private fun openExpenseEditor(expense: Expense?) {
         val group = mutableState.value.selectedGroup ?: return
+        if (group.archived) return error("This group is archived and no longer accepts financial changes.")
         val editor = editorFor(expense, group)
         mutableState.update {
             it.copy(
@@ -711,10 +888,10 @@ class SplitTheBillsViewModel @Inject constructor(
             splitMode = expense.splitMode,
             entryValues = expense.splitEntries.mapNotNull { entry ->
                 val value = entry.value ?: return@mapNotNull null
-                entry.participantId to if (expense.splitMode == SplitMode.EXACT) {
-                    formatMinor(value, group.currencyExponent)
-                } else {
-                    value.toString()
+                entry.participantId to when (expense.splitMode) {
+                    SplitMode.EXACT -> formatMinor(value, group.currencyExponent)
+                    SplitMode.PERCENTAGE -> percentageText(value)
+                    else -> value.toString()
                 }
             }.toMap(),
             date = expense.date,
@@ -765,17 +942,11 @@ class SplitTheBillsViewModel @Inject constructor(
         require(editor.payerParticipantId.isNotBlank()) { "Choose who paid." }
         require(editor.selectedParticipantIds.isNotEmpty()) { "Select at least one participant." }
         val currency = CurrencyUnit(group.currency, group.currencyExponent)
-        val amount = MoneyText.parseUnsignedMinor(editor.amount, currency)
+        val amount = MoneyText.parseUnsignedMinor(editor.amount.trim(), currency)
         require(amount > 0L) { "Amount must be greater than zero." }
-        val entries = editor.selectedParticipantIds.sorted().map { id ->
-            val value = when (editor.splitMode) {
-                SplitMode.EQUAL -> null
-                SplitMode.EXACT -> MoneyText.parseUnsignedMinor(editor.entryValues[id].orEmpty(), currency)
-                SplitMode.PERCENTAGE, SplitMode.WEIGHTED -> editor.entryValues[id]?.toLongOrNull()
-                    ?: throw IllegalArgumentException("Enter a whole-number value for every selected participant.")
-            }
-            SplitEntryInput(id, value)
-        }
+        require(group.participants.any { it.id == editor.payerParticipantId && it.active }) { "Choose an active payer." }
+        val entries = splitEntries(editor, group)
+        splitAllocations(editor, group) // Validate the entire split with the same calculation used by the backend.
         return ExpenseInput(
             title = editor.title.trim(),
             amountMinor = amount,
@@ -792,7 +963,8 @@ class SplitTheBillsViewModel @Inject constructor(
     private fun deleteSelectedExpense() {
         val group = mutableState.value.selectedGroup ?: return
         val expense = selectedExpense() ?: return
-        launchSaving(success = "Expense removed") {
+        if (!canChangeRecord(group, expense.createdByUid)) return error("Only the creator or group owner can remove this expense.")
+        launchSaving(success = "Expense removed", conflictTarget = ConflictTarget.EXPENSE) {
             groupsRepository.deleteExpense(group.id, expense.id, expense.revision)
             mutableState.update { it.copy(screen = AppScreen.GROUP_DETAIL, selectedExpenseId = null) }
         }
@@ -809,7 +981,9 @@ class SplitTheBillsViewModel @Inject constructor(
     }
 
     private fun openSettlement() {
-        val active = mutableState.value.selectedGroup?.participants?.filter { it.active }.orEmpty()
+        val group = mutableState.value.selectedGroup ?: return
+        if (group.archived) return error("This group is archived.")
+        val active = group.participants.filter { it.active }
         mutableState.update {
             it.copy(
                 screen = AppScreen.SETTLEMENT_EDITOR,
@@ -830,33 +1004,74 @@ class SplitTheBillsViewModel @Inject constructor(
         if (amount <= 0L || form.fromParticipantId.isBlank() || form.toParticipantId.isBlank() ||
             form.fromParticipantId == form.toParticipantId
         ) return error("Choose two different participants and a positive amount.")
-        launchSaving(success = "Repayment recorded — no money was transferred") {
-            groupsRepository.createSettlement(
-                group.id,
-                SettlementInput(
-                    fromParticipantId = form.fromParticipantId,
-                    toParticipantId = form.toParticipantId,
-                    amountMinor = amount,
-                    currency = group.currency,
-                    date = form.date,
-                    note = form.note.trim().ifEmpty { null },
-                ),
-            )
-            mutableState.update { it.copy(screen = AppScreen.GROUP_DETAIL, selectedTab = GroupTab.BALANCES) }
+        if (group.archived) return error("This group is archived.")
+        if (form.settlementId != null && selectedSettlement()?.let { !canChangeRecord(group, it.createdByUid) } != false) {
+            return error("This repayment is no longer available for you to edit.")
+        }
+        val input = SettlementInput(
+            fromParticipantId = form.fromParticipantId,
+            toParticipantId = form.toParticipantId,
+            amountMinor = amount,
+            currency = group.currency,
+            date = form.date,
+            note = form.note.trim().ifEmpty { null },
+        )
+        launchSaving(success = if (form.settlementId == null) "Repayment recorded — no money was transferred" else "Repayment updated",
+            conflictTarget = ConflictTarget.SETTLEMENT) {
+            val result = if (form.settlementId == null) {
+                groupsRepository.createSettlement(group.id, input, form.operationId)
+            } else {
+                groupsRepository.updateSettlement(group.id, form.settlementId, requireNotNull(form.expectedRevision), input, form.operationId)
+            }
+            mutableState.update { it.copy(screen = AppScreen.SETTLEMENT_DETAIL, selectedSettlementId = result.resourceId,
+                selectedTab = GroupTab.BALANCES, settlementDeleteOperationId = newOperationId()) }
+        }
+    }
+
+    private fun selectedSettlement(): Settlement? = mutableState.value.let { state ->
+        state.selectedGroup?.settlements?.firstOrNull { it.id == state.selectedSettlementId }
+    }
+
+    private fun settlementEditorFor(settlement: Settlement, group: GroupDetail) = SettlementEditorState(
+        settlementId = settlement.id, expectedRevision = settlement.revision,
+        fromParticipantId = settlement.fromParticipantId, toParticipantId = settlement.toParticipantId,
+        amount = formatMinor(settlement.amountMinor, group.currencyExponent), date = settlement.date, note = settlement.note.orEmpty(),
+    )
+
+    private fun canChangeRecord(group: GroupDetail, creatorUid: String): Boolean =
+        !group.archived && mutableState.value.user?.uid.let { it == group.ownerUid || it == creatorUid }
+
+    private fun deleteSelectedSettlement() {
+        val state = mutableState.value
+        val group = state.selectedGroup ?: return
+        val settlement = selectedSettlement() ?: return
+        if (!canChangeRecord(group, settlement.createdByUid)) return error("Only the creator or group owner can remove this repayment.")
+        launchSaving(success = "Repayment removed and balances restored", conflictTarget = ConflictTarget.SETTLEMENT) {
+            groupsRepository.deleteSettlement(group.id, settlement.id, settlement.revision, state.settlementDeleteOperationId)
+            mutableState.update { it.copy(screen = AppScreen.GROUP_DETAIL, selectedTab = GroupTab.BALANCES, selectedSettlementId = null) }
         }
     }
 
     private fun retry() {
-        val selected = mutableState.value.selectedGroup?.id
-        if (selected != null) openGroup(selected) else mutableState.value.user?.let(::observeGroups)
+        overviewJobs.values.forEach { it.cancel() }
+        overviewJobs.clear()
+        groupsJob?.cancel()
+        observedUid = null
+        mutableState.value.user?.let(::observeGroups)
+        val state = mutableState.value
+        state.selectedGroupId?.let { openGroup(it, state.screen, state.selectedExpenseId, state.selectedSettlementId) }
     }
 
     private fun back() {
+        if (mutableState.value.saving) return
         if (mutableState.value.screen == AppScreen.EXPENSE_EDITOR) persistExpenseDraftImmediately()
         val target = when (mutableState.value.screen) {
-            AppScreen.CREATE_GROUP, AppScreen.SETTINGS, AppScreen.INVITATION_REDEMPTION -> AppScreen.GROUPS
+            AppScreen.CREATE_GROUP, AppScreen.SETTINGS, AppScreen.INVITATION_REDEMPTION,
+            AppScreen.SEARCH, AppScreen.NOTIFICATIONS, AppScreen.REMINDERS, AppScreen.FRIENDS,
+            AppScreen.HELP, AppScreen.SETTLEMENT_PICKER, AppScreen.EXPENSE_GROUP_PICKER -> AppScreen.GROUPS
             AppScreen.EXPENSE_EDITOR, AppScreen.EXPENSE_DETAIL, AppScreen.SETTLEMENT_EDITOR,
-            AppScreen.GROUP_MEMBERS -> AppScreen.GROUP_DETAIL
+            AppScreen.SETTLEMENT_DETAIL,
+            AppScreen.GROUP_MEMBERS, AppScreen.GROUP_OPTIONS -> AppScreen.GROUP_DETAIL
             AppScreen.GROUP_DETAIL -> AppScreen.GROUPS
             else -> mutableState.value.screen
         }
@@ -874,17 +1089,17 @@ class SplitTheBillsViewModel @Inject constructor(
     ) {
         if (mutableState.value.saving) return
         if (requireOnline && !mutableState.value.online) return error("Connect to the internet before making a shared change.")
+        mutableState.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
-            mutableState.update { it.copy(saving = true, error = null) }
             try {
                 block()
                 mutableState.update { it.copy(saving = false, message = success ?: it.message) }
             } catch (failure: BackendException) {
                 val conflict = if (failure.errorCode == "STALE_REVISION") {
                     val actual = (failure.details["actualRevision"] as? Number)?.toLong()
-                    if (conflictTarget == ConflictTarget.EXPENSE) {
+                    if (conflictTarget == ConflictTarget.EXPENSE || conflictTarget == ConflictTarget.SETTLEMENT) {
                         "This record changed elsewhere${actual?.let { " (server revision $it)" }.orEmpty()}. " +
-                            "Your draft is still on this device. Reload the server version or keep editing."
+                            "Your changes are still available. Reload the server version or keep editing."
                     } else {
                         "This group changed elsewhere${actual?.let { " (server revision $it)" }.orEmpty()}. " +
                             "Reload the group before trying the management change again."
@@ -996,6 +1211,17 @@ class SplitTheBillsViewModel @Inject constructor(
         val state = mutableState.value
         when (state.conflictTarget) {
             ConflictTarget.EXPENSE -> reloadConflictedExpense()
+            ConflictTarget.SETTLEMENT -> {
+                val group = state.selectedGroup ?: return
+                val settlement = selectedSettlement()
+                    ?: return error("This repayment was removed. Return to the group's payment history.")
+                mutableState.update { it.copy(
+                    settlementEditor = settlementEditorFor(settlement, group),
+                    settlementDeleteOperationId = newOperationId(),
+                    conflict = null, conflictTarget = null, conflictActualRevision = null,
+                    message = "Loaded the current repayment. Review it before saving or removing it.",
+                ) }
+            }
             ConflictTarget.INVITATION -> {
                 val actualRevision = state.conflictActualRevision ?: return
                 val invitationId = state.groupMembers.pendingRevokeInvitationId ?: return
@@ -1075,6 +1301,13 @@ private fun newOperationId(): String = UUID.randomUUID().toString()
 private object DefaultUserPreferencesRepository : UserPreferencesRepository {
     private val value = MutableStateFlow(ThemePreference.SYSTEM)
     override val theme = value.asStateFlow()
+    override val features = MutableStateFlow(FeaturePreferences())
+    override suspend fun setDefaultCurrency(value: String) { features.value = features.value.copy(defaultCurrency = value) }
+    override suspend fun setSimplifyDebts(value: Boolean) { features.value = features.value.copy(simplifyDebts = value) }
+    override suspend fun setBiometricLock(value: Boolean) { features.value = features.value.copy(biometricLock = value) }
+    override suspend fun markNotificationsRead(uid: String, throughEpochMillis: Long) {
+        features.value = features.value.copy(notificationReadAt = features.value.notificationReadAt + (uid to throughEpochMillis))
+    }
     override suspend fun setTheme(value: ThemePreference) {
         this.value.value = value
     }

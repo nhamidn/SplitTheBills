@@ -9,6 +9,7 @@ import com.dts.splitthebill.domain.model.ExpenseInput
 import com.dts.splitthebill.domain.model.GroupDetail
 import com.dts.splitthebill.domain.model.GroupMember
 import com.dts.splitthebill.domain.model.GroupSummary
+import com.dts.splitthebill.domain.model.GroupType
 import com.dts.splitthebill.domain.model.InvitationSecret
 import com.dts.splitthebill.domain.model.InvitationSummary
 import com.dts.splitthebill.domain.model.MutationResult
@@ -21,6 +22,7 @@ import com.dts.splitthebill.domain.model.Settlement
 import com.dts.splitthebill.domain.model.SettlementInput
 import com.dts.splitthebill.domain.model.SplitMode
 import com.dts.splitthebill.domain.repository.GroupsRepository
+import com.dts.splitthebill.domain.repository.BackendException
 import com.dts.splitthebill.data.remote.awaitResult
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.CollectionReference
@@ -37,6 +39,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.filterNotNull
 
 @Singleton
 class FirebaseGroupsRepository @Inject constructor(
@@ -62,6 +65,12 @@ class FirebaseGroupsRepository @Inject constructor(
         ) { values ->
             val root = values[0] as DocumentSnapshot
             val member = values[1] as DocumentSnapshot
+            if (!root.exists() || !member.exists()) {
+                if (!root.metadata.isFromCache && !member.metadata.isFromCache) {
+                    throw BackendException("NOT_FOUND", "This group is no longer available to your account.")
+                }
+                return@combine null
+            }
             val members = (values[2] as QuerySnapshot).documents.mapNotNull(::member)
                 .sortedWith(compareBy<GroupMember> { it.role != "OWNER" }.thenBy { it.uid })
             val participants = (values[3] as QuerySnapshot).documents.mapNotNull(::participant)
@@ -97,12 +106,19 @@ class FirebaseGroupsRepository @Inject constructor(
                         else -> false
                     }
                 },
+                type = groupType(root),
             )
-        }
+        }.filterNotNull()
     }
 
-    override suspend fun createGroup(name: String, currency: String, participantName: String) =
-        call("v1CreateGroup", mapOf("name" to name, "currency" to currency, "participantName" to participantName))
+    override suspend fun createGroup(name: String, currency: String, participantName: String, type: GroupType) =
+        call("v1CreateGroup", mapOf("name" to name, "currency" to currency, "participantName" to participantName, "groupType" to type.name))
+
+    override suspend fun renameGroup(groupId: String, expectedRevision: Long, name: String, type: GroupType) =
+        call("v1RenameGroup", mapOf("groupId" to groupId, "expectedRevision" to expectedRevision, "name" to name, "groupType" to type.name))
+
+    override suspend fun archiveGroup(groupId: String, expectedRevision: Long) =
+        call("v1ArchiveGroup", mapOf("groupId" to groupId, "expectedRevision" to expectedRevision, "archived" to true))
 
     override suspend fun createParticipant(groupId: String, name: String) =
         call("v1CreateParticipant", mapOf("groupId" to groupId, "name" to name))
@@ -133,21 +149,25 @@ class FirebaseGroupsRepository @Inject constructor(
             mapOf("groupId" to groupId, "expenseId" to expenseId, "expectedRevision" to expectedRevision),
         )
 
-    override suspend fun createSettlement(groupId: String, settlement: SettlementInput) =
-        call(
-            "v1CreateSettlement",
-            mapOf(
-                "groupId" to groupId,
-                "settlement" to mapOf(
-                    "fromParticipantId" to settlement.fromParticipantId,
-                    "toParticipantId" to settlement.toParticipantId,
-                    "amountMinor" to settlement.amountMinor,
-                    "currency" to settlement.currency,
-                    "date" to settlement.date,
-                    "note" to settlement.note,
-                ),
-            ),
-        )
+    override suspend fun createSettlement(groupId: String, settlement: SettlementInput, operationId: String) =
+        call("v1CreateSettlement", mapOf("groupId" to groupId, "settlement" to settlementPayload(settlement)), operationId)
+
+    override suspend fun updateSettlement(groupId: String, settlementId: String, expectedRevision: Long, settlement: SettlementInput, operationId: String) =
+        call("v1UpdateSettlement", mapOf("groupId" to groupId, "settlementId" to settlementId,
+            "expectedRevision" to expectedRevision, "settlement" to settlementPayload(settlement)), operationId)
+
+    override suspend fun deleteSettlement(groupId: String, settlementId: String, expectedRevision: Long, operationId: String) =
+        call("v1DeleteSettlement", mapOf("groupId" to groupId, "settlementId" to settlementId,
+            "expectedRevision" to expectedRevision), operationId)
+
+    private fun settlementPayload(settlement: SettlementInput): Map<String, Any?> = mapOf(
+        "fromParticipantId" to settlement.fromParticipantId,
+        "toParticipantId" to settlement.toParticipantId,
+        "amountMinor" to settlement.amountMinor,
+        "currency" to settlement.currency,
+        "date" to settlement.date,
+        "note" to settlement.note,
+    )
 
     override suspend fun createInvitation(
         groupId: String,
@@ -324,6 +344,7 @@ class FirebaseGroupsRepository @Inject constructor(
             participantId = document.getString("participantId"),
             revision = document.getLong("groupRevision") ?: 0L,
             archived = document.getTimestamp("archivedAt") != null,
+            type = groupType(document),
         )
     }
 
@@ -336,6 +357,9 @@ class FirebaseGroupsRepository @Inject constructor(
             active = document.getString("status") == "ACTIVE",
         )
     }
+
+    private fun groupType(document: DocumentSnapshot): GroupType =
+        runCatching { GroupType.valueOf(document.getString("groupType").orEmpty()) }.getOrDefault(GroupType.OTHER)
 
     private fun member(document: DocumentSnapshot): GroupMember? {
         val uid = document.getString("uid") ?: return null
@@ -398,6 +422,7 @@ class FirebaseGroupsRepository @Inject constructor(
             actorUid = document.getString("actorUid"),
             resourceRevision = document.getLong("resourceRevision") ?: 0L,
             occurredAtEpochMillis = (document.get("occurredAt") as? Timestamp)?.toDate()?.time ?: 0L,
+            resourceId = document.getString("resourceId"),
         )
     }
 

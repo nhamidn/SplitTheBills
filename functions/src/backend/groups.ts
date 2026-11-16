@@ -14,7 +14,8 @@ import {
 } from "./validation.js";
 
 export async function createGroup(uid: string, data: unknown): Promise<MutationResponse> {
-  const request = mutationRequest(data, ["name", "currency", "participantName"], ["name", "currency", "participantName"]);
+  const request = mutationRequest(data, ["name", "currency", "participantName", "groupType"], ["name", "currency", "participantName"]);
+  const groupType = validatedGroupType(request.groupType);
   const name = stringValue(request, "name", 1, 80);
   const currency = currencyMetadata(currencyValue(request));
   const participantName = stringValue(request, "participantName", 1, 80);
@@ -25,6 +26,7 @@ export async function createGroup(uid: string, data: unknown): Promise<MutationR
   return idempotentMutation("v1CreateGroup", uid, operationId(request), request, async (transaction, committedAt) => {
     transaction.create(groupRef, {
       name,
+      groupType,
       currency: currency.code,
       currencyExponent: currency.exponent,
       ownerUid: uid,
@@ -61,6 +63,7 @@ export async function createGroup(uid: string, data: unknown): Promise<MutationR
     transaction.set(firestore.doc(`users/${uid}/groups/${groupRef.id}`), {
       groupId: groupRef.id,
       name,
+      groupType,
       currency: currency.code,
       role: "OWNER",
       participantId: participantRef.id,
@@ -84,7 +87,8 @@ export async function createGroup(uid: string, data: unknown): Promise<MutationR
 }
 
 export async function renameGroup(uid: string, data: unknown): Promise<MutationResponse> {
-  const request = mutationRequest(data, ["groupId", "expectedRevision", "name"], ["groupId", "expectedRevision", "name"]);
+  const request = mutationRequest(data, ["groupId", "expectedRevision", "name", "groupType"], ["groupId", "expectedRevision", "name"]);
+  const groupType = request.groupType === undefined ? undefined : validatedGroupType(request.groupType);
   const groupId = idValue(request, "groupId");
   const expectedRevision = integerValue(request, "expectedRevision", 1);
   const name = stringValue(request, "name", 1, 80);
@@ -102,10 +106,11 @@ export async function renameGroup(uid: string, data: unknown): Promise<MutationR
     requireOwner(group, uid);
     requireRevision(groupId, expectedRevision, group.revision);
     const revision = group.revision + 1;
-    transaction.update(groupRef, { name, revision, updatedAt: committedAt });
+    transaction.update(groupRef, { name, ...(groupType === undefined ? {} : { groupType }), revision, updatedAt: committedAt });
     membersSnapshot.docs.forEach((member) => {
       transaction.set(firestore.doc(`users/${member.id}/groups/${groupId}`), {
         name,
+        ...(groupType === undefined ? {} : { groupType }),
         groupRevision: revision,
         updatedAt: committedAt,
       }, { merge: true });
@@ -199,4 +204,12 @@ export async function createParticipant(uid: string, data: unknown): Promise<Mut
 
 export function timestampIso(timestamp: Timestamp): string {
   return timestamp.toDate().toISOString();
+}
+
+export function validatedGroupType(value: unknown): string {
+  if (value === undefined) return "OTHER";
+  if (typeof value !== "string" || !["TRIP", "HOME", "FRIENDS", "COUPLE", "OTHER"].includes(value)) {
+    appError("invalid-argument", "INVALID_ARGUMENT", "Choose a valid group type.");
+  }
+  return value as string;
 }

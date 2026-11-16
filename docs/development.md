@@ -94,7 +94,7 @@ npm --prefix functions run build
 
 `ci` installs the lockfile versions. `build` compiles `functions/src/` to the ignored
 `functions/lib/` directory. The Functions emulator loads `lib/index.js`, not TypeScript
-source. The `emulators` script currently checks Node's version but does not build the code.
+source. The `emulators` command also checks Node and compiles the backend before startup.
 
 Local testing with the committed demo project needs no Firebase login, billing, service
 account, OAuth client ID, or `app/google-services.json`. If you already have that file,
@@ -109,7 +109,13 @@ npm --prefix functions run emulators -- --only auth,firestore,functions
 
 Leave this terminal running. Wait for **All emulators ready** and the **Loaded functions
 definitions from source** line listing the `v1...` handlers. Merely seeing the ready banner
-does not prove that the Functions code loaded.
+does not prove that the Functions code loaded. Startup then seeds demo accounts and shared
+plans automatically; wait for **[demo] Demo data ready** before signing in.
+
+Start with **`alice@demo.test` / `SplitDemo123!`** to see populated groups, balances,
+notifications, and reminders. Bob, Cara, and Dana provide owner/member/invitation scenarios.
+See [Demo accounts and test data](demo-data.md) for every login, initial balance, and walkthrough.
+To seed an already-running suite, use `npm --prefix functions run seed:demo`.
 
 | Service | Host address | Purpose |
 | --- | --- | --- |
@@ -167,9 +173,10 @@ with `./gradlew :app:installDebug -PfirebaseEmulatorHost=10.0.2.2`. The fallback
 
 ## 5. Test a complete expense manually
 
-1. Choose **Create account**. Use a disposable address such as `dev@example.test` and a
+1. For a new-user journey, choose **Create account**. Use a disposable address such as `dev@example.test` and a
    password with at least six characters. Email/password works entirely against local Auth;
-   Google sign-in needs additional real-project setup.
+   Google sign-in needs additional real-project setup. Alternatively, sign in with a
+   [demo account](demo-data.md) to explore populated screens immediately.
 2. Open **Groups** in the bottom navigation, then **Create a group**. Enter a name, open
    **Currency**, and search by code or currency name. The selector offers 162 currencies;
    choose EUR for this example. Enter your participant name (for example, Alex) and submit
@@ -311,8 +318,9 @@ npm --prefix functions run emulators -- --only auth,firestore,functions \
 
 The export contains local test accounts and group records. Android's installed app retains
 its own Auth session, cached Firestore data, and Room drafts independently. If the server
-starts fresh, create/sign into a local account again; cached records alone do not confirm
-that those records exist on the restarted server.
+starts fresh, the demo accounts and original demo fixtures are seeded again. Sign in with a
+demo account or create a new local account; cached records alone do not confirm that records
+from the previous server session still exist. Imported data and completed demo edits are preserved.
 
 ## Troubleshooting
 

@@ -2,8 +2,8 @@
 
 ## Implemented safeguards
 
-- The Compose shell uses bottom navigation below 700 dp and a navigation rail at 700 dp and
-  above. Page/form bodies are centered with bounded widths and remain vertically scrollable.
+- The Compose shell uses bottom navigation. Page/form bodies are centered with bounded widths
+  and remain vertically scrollable.
 - Forms apply IME insets. Action groups that are likely to overflow use wrapping rows; dedicated
   previews cover standard screen sizes, a phone at 200% font scale, and a tablet.
 - The back affordance has a spoken label, screen/form titles are semantic headings, the offline
@@ -23,9 +23,10 @@ landscape at 100%, 150%, and 200% font size/display size. Exercise keyboard trav
 form, offline-to-online recovery, stale expense conflict, owner deletion with zero/one/multiple
 transfer candidates, and deletion blocked for an owned group with no other member.
 
-Replace the placeholder App Link host, configure production Firebase/App Check and signing, and
-run the complete commands in the README. No production deployment, billing change, provider
-enablement, or signing-key creation is performed by this project.
+Follow [Real Firebase testing and production deployment](firebase-setup.md) to replace the
+placeholder App Link host, configure production Firebase/App Check and signing, verify staging,
+and deploy a reviewed backend commit. The deployment script requires an explicit real project
+ID; preparing the repository does not change billing, enable providers, or create signing keys.
 
 ## Verification snapshot — 2026-09-08
 

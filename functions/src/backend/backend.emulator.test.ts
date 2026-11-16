@@ -67,12 +67,14 @@ test("two-user financial journey is authorized, atomic, idempotent, and conflict
     apiVersion: "v1",
     operationId: createGroupOperation,
     name: "Coast weekend",
+    groupType: "TRIP",
     currency: "EUR",
     participantName: "Alex",
   };
   const createdGroup = await call(owner, "v1CreateGroup", createGroupRequest);
   const groupId = createdGroup.resourceId as string;
   const ownerParticipantId = createdGroup.participantId as string;
+  assert.equal((await group(owner.firestore, groupId)).groupType, "TRIP");
   assert.equal(createdGroup.replayed, false);
 
   const replayedGroup = await call(owner, "v1CreateGroup", createGroupRequest);
@@ -112,6 +114,7 @@ test("two-user financial journey is authorized, atomic, idempotent, and conflict
     token: invitation.token,
   });
   assert.equal(redeemed.resourceId, groupId);
+  assert.equal((await getDoc(doc(member.firestore, `users/${member.uid}/groups/${groupId}`))).data()?.groupType, "TRIP");
   await assertErrorCode(call(outsider, "v1RedeemInvitation", {
     apiVersion: "v1",
     operationId: randomUUID(),
@@ -307,6 +310,19 @@ test("two-user financial journey is authorized, atomic, idempotent, and conflict
     code: revocableInvitation.code,
   }), "INVITATION_REVOKED");
 
+  const beforeRename = await group(owner.firestore, groupId);
+  await assertErrorCode(call(member, "v1RenameGroup", {
+    apiVersion: "v1", operationId: randomUUID(), groupId, expectedRevision: beforeRename.revision,
+    name: "Not allowed", groupType: "HOME",
+  }), "OWNER_REQUIRED");
+  await call(owner, "v1RenameGroup", {
+    apiVersion: "v1", operationId: randomUUID(), groupId, expectedRevision: beforeRename.revision,
+    name: "Weekend at home", groupType: "HOME",
+  });
+  assert.equal((await group(owner.firestore, groupId)).groupType, "HOME");
+  const updatedProjection = (await getDoc(doc(member.firestore, `users/${member.uid}/groups/${groupId}`))).data();
+  assert.equal(updatedProjection?.groupType, "HOME");
+  assert.equal(updatedProjection?.name, "Weekend at home");
   const currentGroup = await group(owner.firestore, groupId);
   await call(owner, "v1ArchiveGroup", {
     apiVersion: "v1",

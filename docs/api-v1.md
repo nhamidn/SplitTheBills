@@ -93,8 +93,8 @@ may preview but never overrides server allocations.
 | Callable | Required role | Operation-specific input |
 |---|---|---|
 | `v1ApiInfo` | none | none; metadata only, no mutation |
-| `v1CreateGroup` | signed in | `name`, `currency`, owner `participantName` |
-| `v1RenameGroup` | owner | `groupId`, `expectedRevision`, `name` |
+| `v1CreateGroup` | signed in | `name`, `currency`, owner `participantName`; optional `groupType` |
+| `v1RenameGroup` | owner | `groupId`, `expectedRevision`, `name`; optional `groupType` |
 | `v1ArchiveGroup` | owner | `groupId`, `expectedRevision`, `archived: true` |
 | `v1CreateParticipant` | owner | `groupId`, `name` |
 | `v1CreateInvitation` | owner | `groupId`, `expiresInSeconds`, `maxUses` |
@@ -125,6 +125,10 @@ Create responses return server-assigned IDs. Invitation creation is the only res
 returns a raw secret, once; stored invitation documents contain only its hash. Redemption is
 rate-limited by normalized code/token hash and caller/IP-derived server signals, expires,
 can be revoked, and consumes usage in the membership transaction.
+
+`groupType` is one of `TRIP`, `HOME`, `FRIENDS`, `COUPLE`, or `OTHER`. Creation defaults to
+`OTHER`; renaming without `groupType` preserves the existing type. Changes are projected to
+every member's group list, including memberships created by invitation redemption.
 
 Archived groups reject expense and settlement creation/edit/deletion with `GROUP_ARCHIVED`.
 Rename, invitation/member management, ownership transfer, reads, and explicit unarchive

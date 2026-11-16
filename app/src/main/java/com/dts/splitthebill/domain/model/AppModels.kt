@@ -14,7 +14,10 @@ data class GroupSummary(
     val participantId: String?,
     val revision: Long,
     val archived: Boolean,
+    val type: GroupType = GroupType.OTHER,
 )
+
+enum class GroupType(val label: String) { TRIP("Trip"), HOME("Home"), FRIENDS("Friends"), COUPLE("Couple"), OTHER("Other") }
 
 data class Participant(
     val id: String,
@@ -91,6 +94,7 @@ data class ActivityEvent(
     val actorUid: String?,
     val resourceRevision: Long,
     val occurredAtEpochMillis: Long,
+    val resourceId: String? = null,
 )
 
 data class GroupDetail(
@@ -109,6 +113,7 @@ data class GroupDetail(
     val balances: List<ParticipantBalance>,
     val activity: List<ActivityEvent>,
     val fromCache: Boolean,
+    val type: GroupType = GroupType.OTHER,
 )
 
 data class InvitationSecret(

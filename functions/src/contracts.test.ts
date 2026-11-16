@@ -3,6 +3,13 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, test } from "node:test";
 import { API_VERSION, getApiInfo } from "./contracts.js";
 import { currencyMetadata } from "./backend/currency.js";
+import { validatedGroupType } from "./backend/groups.js";
+
+test("group types are backward compatible and reject unsupported values", () => {
+  assert.equal(validatedGroupType(undefined), "OTHER");
+  for (const value of ["TRIP", "HOME", "FRIENDS", "COUPLE", "OTHER"]) assert.equal(validatedGroupType(value), value);
+  for (const value of [null, 5, "trip", "WORK", ""]) assert.throws(() => validatedGroupType(value));
+});
 
 test("every currency offered by the client is accepted by the backend", () => {
   const catalog = JSON.parse(readFileSync(

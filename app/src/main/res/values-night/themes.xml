@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.SplitTheBill" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.SplitTheBill" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">#141716</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>

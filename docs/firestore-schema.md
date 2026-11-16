@@ -12,14 +12,17 @@ mirrored `displayName`, normalized `email`, `photoUrl`, `createdAt`, and `update
 clients never write this document. Account deletion removes any mirrored personal fields and
 retains only the deletion lifecycle metadata.
 
-`users/{uid}/groups/{groupId}` is a read-optimized projection: `groupId`, `name`, `currency`,
+`users/{uid}/groups/{groupId}` is a read-optimized projection: `groupId`, `name`, `groupType`, `currency`,
 `role`, `participantId?`, `archivedAt?`, `groupRevision`, `updatedAt`. The canonical member
 record controls access.
 
 ## Group root and access
 
-`groups/{groupId}`: `name`, `currency`, `currencyExponent`, `ownerUid`, `revision`,
+`groups/{groupId}`: `name`, `groupType`, `currency`, `currencyExponent`, `ownerUid`, `revision`,
 `financialRecordCount`, `createdAt`, `updatedAt`, `archivedAt?`.
+
+`groupType` is `TRIP`, `HOME`, `FRIENDS`, `COUPLE`, or `OTHER`; clients treat older records
+without it as `OTHER`.
 
 `groups/{groupId}/members/{uid}`: `uid`, `role` (`OWNER` or `MEMBER`), `participantId?`,
 `joinedAt`, `updatedAt`, `revision`. A member and participant may be temporarily unlinked.

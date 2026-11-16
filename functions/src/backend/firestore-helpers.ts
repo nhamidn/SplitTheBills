@@ -11,6 +11,7 @@ import { appError } from "./errors.js";
 
 export interface GroupData {
   name: string;
+  groupType?: string;
   currency: string;
   currencyExponent: number;
   ownerUid: string;

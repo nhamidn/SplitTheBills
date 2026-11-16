@@ -209,6 +209,7 @@ export async function redeemInvitation(
     transaction.set(firestore.doc(`users/${uid}/groups/${groupId}`), {
       groupId,
       name: group.name,
+      groupType: group.groupType ?? "OTHER",
       currency: group.currency,
       role: "MEMBER",
       participantId: null,

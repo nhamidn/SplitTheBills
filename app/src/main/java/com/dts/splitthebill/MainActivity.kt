@@ -5,14 +5,24 @@ import android.app.ActivityManager
 import android.os.Bundle
 import android.os.Process
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import androidx.activity.viewModels
+import androidx.activity.result.contract.ActivityResultContracts
+import android.view.WindowManager
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.*
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.NoCredentialException
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
@@ -28,17 +38,47 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private val pendingInvitationToken = MutableStateFlow<String?>(null)
+    private val viewModel: SplitTheBillsViewModel by viewModels()
+    private lateinit var deviceAuthenticator: DeviceAuthenticator
+    private var unlocked by mutableStateOf(false)
+    private var foreground by mutableStateOf(false)
+    private var lockError by mutableStateOf<String?>(null)
+    private var lockEnabled = false
+    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri == null) {
+            viewModel.onAction(SplitTheBillsAction.ExportFinished())
+        } else {
+            val document = viewModel.state.value.exportDocument
+            if (document == null) {
+                viewModel.onAction(SplitTheBillsAction.ExportFinished(error = "Export expired. Please try exporting again."))
+            } else lifecycleScope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val output = contentResolver.openOutputStream(uri, "wt") ?: throw java.io.IOException("No writable document")
+                        output.bufferedWriter(Charsets.UTF_8).use { it.write(document.contents) }
+                    }
+                    viewModel.onAction(SplitTheBillsAction.ExportFinished(saved = true))
+                } catch (_: java.io.IOException) {
+                    viewModel.onAction(SplitTheBillsAction.ExportFinished(error = "Could not save the CSV. Choose a writable location and try again."))
+                } catch (_: SecurityException) {
+                    viewModel.onAction(SplitTheBillsAction.ExportFinished(error = "Access to that document was denied. Try another location."))
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        deviceAuthenticator = DeviceAuthenticator(this)
         pendingInvitationToken.value = intent.invitationToken()
         enableEdgeToEdge()
         setContent {
-            val viewModel: SplitTheBillsViewModel = hiltViewModel()
             val state = viewModel.state.collectAsStateWithLifecycle()
             val systemDark = isSystemInDarkTheme()
             val darkTheme = when (state.value.themePreference) {
@@ -54,6 +94,21 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
             }
             SplitTheBillsTheme(darkTheme = darkTheme) {
+                LaunchedEffect(state.value.exportRequested) {
+                    if (state.value.exportRequested) state.value.exportDocument?.let { document ->
+                        viewModel.onAction(SplitTheBillsAction.ExportPickerOpened)
+                        exportLauncher.launch(document.fileName)
+                    }
+                }
+                LaunchedEffect(state.value.preferences.biometricLock) {
+                    lockEnabled = state.value.preferences.biometricLock
+                    if (lockEnabled) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+                val locked = state.value.preferences.biometricLock && !unlocked
+                LaunchedEffect(locked, foreground, state.value.preferencesResolved) {
+                    if (locked && foreground && state.value.preferencesResolved) unlock()
+                }
                 val invitationToken = pendingInvitationToken.collectAsStateWithLifecycle()
                 LaunchedEffect(invitationToken.value) {
                     invitationToken.value?.let { token ->
@@ -77,11 +132,29 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-                SplitTheBillsApp(
-                    state = state.value,
-                    onAction = viewModel::onAction,
-                    onGoogleSignIn = { beginGoogleSignIn(viewModel) },
-                )
+                when {
+                    !state.value.preferencesResolved -> Surface(Modifier.fillMaxSize()) {
+                        Box(contentAlignment = Alignment.Center) { Text(state.value.error ?: "Loading preferences…") }
+                    }
+                    locked -> Surface(Modifier.fillMaxSize()) {
+                        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Split the Bills is locked", style = MaterialTheme.typography.headlineSmall)
+                            lockError?.let { Text(it, modifier = Modifier.padding(vertical = 16.dp)) }
+                            Button(onClick = { unlock() }) { Text("Unlock") }
+                        }
+                    }
+                    else -> SplitTheBillsApp(
+                        state = state.value,
+                        onAction = viewModel::onAction,
+                        onGoogleSignIn = { beginGoogleSignIn(viewModel) },
+                        onBiometricLockChange = { enabled ->
+                            deviceAuthenticator.authenticate(onSuccess = {
+                                unlocked = true
+                                viewModel.onAction(SplitTheBillsAction.BiometricLockChanged(enabled))
+                            }, onFailure = { viewModel.onAction(SplitTheBillsAction.ReportError(it)) })
+                        },
+                    )
+                }
             }
         }
     }
@@ -90,6 +163,17 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingInvitationToken.value = intent.invitationToken()
+    }
+
+    override fun onResume() { super.onResume(); foreground = true }
+    override fun onPause() { foreground = false; super.onPause() }
+    override fun onStop() {
+        if (lockEnabled && !isChangingConfigurations) unlocked = false
+        super.onStop()
+    }
+
+    private fun unlock() {
+        deviceAuthenticator.authenticate(onSuccess = { unlocked = true; lockError = null }, onFailure = { lockError = it })
     }
 
     private fun beginGoogleSignIn(viewModel: SplitTheBillsViewModel) {
